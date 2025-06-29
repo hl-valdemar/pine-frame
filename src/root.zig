@@ -19,6 +19,13 @@ pub const Window = platform.Window;
 pub const WindowConfig = platform.WindowConfig;
 pub const Platform = platform.Platform;
 
+// event types
+pub const Event = platform.Event;
+pub const EventType = platform.EventType;
+pub const KeyCode = platform.KeyCode;
+pub const KeyModifiers = platform.KeyModifiers;
+pub const KeyEvent = platform.KeyEvent;
+
 //-- private imports --//
 
 const platform = @import("internal/platform.zig");

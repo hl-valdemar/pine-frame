@@ -1,33 +1,221 @@
 #import "macos_bridge.h"
 #import <Cocoa/Cocoa.h>
 
+// simple event queue implementation
+#define MAX_EVENTS 256
+
+typedef struct {
+  PineEvent events[MAX_EVENTS];
+  size_t head;
+  size_t tail;
+  size_t count;
+} EventQueue;
+
+static void event_queue_init(EventQueue *queue) {
+  queue->head = 0;
+  queue->tail = 0;
+  queue->count = 0;
+}
+
+static bool event_queue_push(EventQueue *queue, const PineEvent *event) {
+  if (queue->count >= MAX_EVENTS) {
+    return false; // queue full
+  }
+
+  queue->events[queue->tail] = *event;
+  queue->tail = (queue->tail + 1) % MAX_EVENTS;
+  queue->count++;
+  return true;
+}
+
+static bool event_queue_pop(EventQueue *queue, PineEvent *event) {
+  if (queue->count == 0) {
+    return false; // queue empty
+  }
+
+  *event = queue->events[queue->head];
+  queue->head = (queue->head + 1) % MAX_EVENTS;
+  queue->count--;
+  return true;
+}
+
 // forward declaration for the window delegate
 @interface WindowDelegate : NSObject <NSWindowDelegate>
 @property(nonatomic, assign) struct PineWindow *pineWindow;
 @end
 
+// custom NSWindow subclass to capture key events
+@interface PineNSWindow : NSWindow
+@property(nonatomic, assign) struct PineWindow *pineWindow;
+@end
+
 // internal window structure
 struct PineWindow {
-  NSWindow *ns_window;
+  PineNSWindow *ns_window;
   WindowDelegate *delegate;
   bool should_close;
+  EventQueue event_queue;
 };
 
 // global application state
 static NSApplication *g_app = nil;
 static bool g_platform_initialized = false;
 
+// convert macOS keycode to PineKeyCode
+static PineKeyCode convert_keycode(unsigned short keyCode) {
+  switch (keyCode) {
+  case 0:
+    return PINE_KEY_A;
+  case 1:
+    return PINE_KEY_S;
+  case 2:
+    return PINE_KEY_D;
+  case 3:
+    return PINE_KEY_F;
+  case 4:
+    return PINE_KEY_H;
+  case 5:
+    return PINE_KEY_G;
+  case 6:
+    return PINE_KEY_Z;
+  case 7:
+    return PINE_KEY_X;
+  case 8:
+    return PINE_KEY_C;
+  case 9:
+    return PINE_KEY_V;
+  case 11:
+    return PINE_KEY_B;
+  case 12:
+    return PINE_KEY_Q;
+  case 13:
+    return PINE_KEY_W;
+  case 14:
+    return PINE_KEY_E;
+  case 15:
+    return PINE_KEY_R;
+  case 16:
+    return PINE_KEY_Y;
+  case 17:
+    return PINE_KEY_T;
+  case 18:
+    return PINE_KEY_1;
+  case 19:
+    return PINE_KEY_2;
+  case 20:
+    return PINE_KEY_3;
+  case 21:
+    return PINE_KEY_4;
+  case 22:
+    return PINE_KEY_6;
+  case 23:
+    return PINE_KEY_5;
+  case 25:
+    return PINE_KEY_9;
+  case 26:
+    return PINE_KEY_7;
+  case 28:
+    return PINE_KEY_8;
+  case 29:
+    return PINE_KEY_0;
+  case 31:
+    return PINE_KEY_O;
+  case 32:
+    return PINE_KEY_U;
+  case 34:
+    return PINE_KEY_I;
+  case 35:
+    return PINE_KEY_P;
+  case 37:
+    return PINE_KEY_L;
+  case 38:
+    return PINE_KEY_J;
+  case 40:
+    return PINE_KEY_K;
+  case 45:
+    return PINE_KEY_N;
+  case 46:
+    return PINE_KEY_M;
+  case 49:
+    return PINE_KEY_SPACE;
+  case 36:
+    return PINE_KEY_ENTER;
+  case 48:
+    return PINE_KEY_TAB;
+  case 51:
+    return PINE_KEY_BACKSPACE;
+  case 53:
+    return PINE_KEY_ESCAPE;
+  case 123:
+    return PINE_KEY_LEFT;
+  case 124:
+    return PINE_KEY_RIGHT;
+  case 125:
+    return PINE_KEY_DOWN;
+  case 126:
+    return PINE_KEY_UP;
+  default:
+    return PINE_KEY_UNKNOWN;
+  }
+}
+
+// PineNSWindow implementation
+@implementation PineNSWindow
+
+- (void)keyDown:(NSEvent *)event {
+  if (self.pineWindow) {
+    PineEvent pine_event = {0};
+    pine_event.type = PINE_EVENT_KEY_DOWN;
+    pine_event.data.key_event.key = convert_keycode([event keyCode]);
+    pine_event.data.key_event.shift =
+        ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+    pine_event.data.key_event.control =
+        ([event modifierFlags] & NSEventModifierFlagControl) != 0;
+    pine_event.data.key_event.alt =
+        ([event modifierFlags] & NSEventModifierFlagOption) != 0;
+    pine_event.data.key_event.command =
+        ([event modifierFlags] & NSEventModifierFlagCommand) != 0;
+
+    event_queue_push(&self.pineWindow->event_queue, &pine_event);
+  }
+}
+
+- (void)keyUp:(NSEvent *)event {
+  if (self.pineWindow) {
+    PineEvent pine_event = {0};
+    pine_event.type = PINE_EVENT_KEY_UP;
+    pine_event.data.key_event.key = convert_keycode([event keyCode]);
+    pine_event.data.key_event.shift =
+        ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+    pine_event.data.key_event.control =
+        ([event modifierFlags] & NSEventModifierFlagControl) != 0;
+    pine_event.data.key_event.alt =
+        ([event modifierFlags] & NSEventModifierFlagOption) != 0;
+    pine_event.data.key_event.command =
+        ([event modifierFlags] & NSEventModifierFlagCommand) != 0;
+
+    event_queue_push(&self.pineWindow->event_queue, &pine_event);
+  }
+}
+
+@end
+
 // WindowDelegate implementation
 @implementation WindowDelegate
 - (BOOL)windowShouldClose:(NSWindow *)sender {
   if (self.pineWindow) {
     self.pineWindow->should_close = true;
+
+    // also push a close event
+    PineEvent event = {0};
+    event.type = PINE_EVENT_WINDOW_CLOSE;
+    event_queue_push(&self.pineWindow->event_queue, &event);
   }
   return NO; // we'll handle closing manually
 }
 @end
 
-bool pine_platform_init() {
+bool pine_platform_init(void) {
   if (g_platform_initialized) {
     return true;
   }
@@ -81,6 +269,7 @@ PineWindow *pine_window_create(const PineWindowConfig *config) {
     }
 
     window->should_close = false;
+    event_queue_init(&window->event_queue);
 
     // create window rect
     NSRect windowRect =
@@ -94,12 +283,15 @@ PineWindow *pine_window_create(const PineWindowConfig *config) {
       styleMask |= NSWindowStyleMaskResizable;
     }
 
-    // create the NSWindow
+    // create the custom NSWindow
     window->ns_window =
-        [[NSWindow alloc] initWithContentRect:windowRect
-                                    styleMask:styleMask
-                                      backing:NSBackingStoreBuffered
-                                        defer:NO];
+        [[PineNSWindow alloc] initWithContentRect:windowRect
+                                        styleMask:styleMask
+                                          backing:NSBackingStoreBuffered
+                                            defer:NO];
+
+    // set the back-reference
+    window->ns_window.pineWindow = window;
 
     // IMPORTANT: Prevent automatic release when window is closed
     [window->ns_window setReleasedWhenClosed:NO];
@@ -116,9 +308,11 @@ PineWindow *pine_window_create(const PineWindowConfig *config) {
     window->delegate.pineWindow = window;
     [window->ns_window setDelegate:window->delegate];
 
+    // make window accept key events
+    [window->ns_window makeFirstResponder:window->ns_window];
+
     // show window if requested
     if (config->visible) {
-      // [window->ns_window orderFrontRegardless];
       [window->ns_window makeKeyAndOrderFront:nil];
       [g_app activateIgnoringOtherApps:YES];
     }
@@ -143,6 +337,7 @@ void pine_window_destroy(PineWindow *window) {
     }
 
     if (window->ns_window) {
+      window->ns_window.pineWindow = NULL;
       [window->ns_window close];
       // since releasedWhenClosed is NO, we need to release manually
       [window->ns_window release];
@@ -159,9 +354,7 @@ void pine_window_show(PineWindow *window) {
   }
 
   @autoreleasepool {
-    // [window->ns_window orderFrontRegardless];
     [window->ns_window makeKeyAndOrderFront:nil];
-    [g_app activateIgnoringOtherApps:YES];
   }
 }
 
@@ -181,6 +374,27 @@ bool pine_window_should_close(PineWindow *window) {
   }
 
   return window->should_close;
+}
+
+void pine_window_request_close(PineWindow *window) {
+  if (!window) {
+    return;
+  }
+
+  window->should_close = true;
+
+  // also push a close event
+  PineEvent event = {0};
+  event.type = PINE_EVENT_WINDOW_CLOSE;
+  event_queue_push(&window->event_queue, &event);
+}
+
+bool pine_window_poll_event(PineWindow *window, PineEvent *event) {
+  if (!window || !event) {
+    return false;
+  }
+
+  return event_queue_pop(&window->event_queue, event);
 }
 
 void pine_platform_poll_events(void) {
