@@ -1,7 +1,7 @@
 const std = @import("std");
 const pw = @import("pine-window");
 
-// use pine-ecs' logging format
+// use pine-window's logging format
 pub const std_options = std.Options{
     .logFn = pw.log.logFn,
 };
@@ -13,54 +13,58 @@ pub fn main() !void {
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
-    std.log.info("Creating window...", .{});
+    std.log.info("Creating windows...", .{});
 
-    // create a window
+    // create windows with proper cleanup on errors
     var window1 = try pw.Window.create(.{
         .width = 800,
         .height = 600,
-        .title = "Pine Window - Basic Example",
+        .x = 100,
+        .y = 100,
+        .title = "Pine Window - Main Window",
         .resizable = true,
         .visible = true,
     });
+    errdefer window1.destroy();
 
-    std.log.info("First window created successfully!", .{});
-
-    // create another window
     var window2 = try pw.Window.create(.{
         .width = 400,
         .height = 300,
-        .title = "Pine Window - Basic Example",
+        .x = 200,
+        .y = 200,
+        .title = "Pine Window - Secondary Window",
         .resizable = true,
         .visible = true,
     });
+    errdefer window2.destroy();
 
-    std.log.info("Second window created successfully! Starting event loop...", .{});
+    std.log.info("Both windows created successfully! Starting event loop...", .{});
 
+    // track window states
     var window1_closed = false;
     var window2_closed = false;
 
-    // simple event loop
-    var running = true;
-    while (running) {
+    // event loop - very similar to your original!
+    while (!window1_closed or !window2_closed) {
         plt.pollEvents();
 
-        if (window1.shouldClose()) {
+        // check and close window1 if needed
+        if (!window1_closed and window1.shouldClose()) {
+            std.log.info("Main window requested close", .{});
             window1.destroy();
             window1_closed = true;
         }
 
-        if (window2.shouldClose()) {
+        // check and close window2 if needed
+        if (!window2_closed and window2.shouldClose()) {
+            std.log.info("Secondary window requested close", .{});
             window2.destroy();
             window2_closed = true;
         }
-
-        if (window1_closed and window2_closed)
-            running = false;
 
         // add a small delay to prevent excessive cpu usage
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS
     }
 
-    std.log.info("Windows closed, exiting...", .{});
+    std.log.info("All windows closed, exiting...", .{});
 }
