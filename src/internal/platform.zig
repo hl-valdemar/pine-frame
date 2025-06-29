@@ -215,7 +215,7 @@ pub const Platform = struct {
         }
     }
 
-    pub fn pollEvents(_: *Platform) void {
+    pub fn pollEvents(_: *const Platform) void {
         c.pine_platform_poll_events();
     }
 };
