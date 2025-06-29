@@ -86,7 +86,7 @@ pub const KeyCode = enum(i32) {
 pub const KeyModifiers = struct {
     shift: bool = false,
     control: bool = false,
-    alt: bool = false,
+    opt: bool = false,
     command: bool = false, // macOS specific, maps to Windows key on other platforms
 };
 
@@ -169,22 +169,22 @@ pub const Window = struct {
             c.PINE_EVENT_NONE => Event{ .none = {} },
             c.PINE_EVENT_KEY_DOWN => Event{
                 .key_down = KeyEvent{
-                    .key = @enumFromInt(c_event.data.key_event.key),
+                    .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
                     .mods = KeyModifiers{
                         .shift = c_event.data.key_event.shift,
                         .control = c_event.data.key_event.control,
-                        .alt = c_event.data.key_event.alt,
+                        .opt = c_event.data.key_event.opt,
                         .command = c_event.data.key_event.command,
                     },
                 },
             },
             c.PINE_EVENT_KEY_UP => Event{
                 .key_up = KeyEvent{
-                    .key = @enumFromInt(c_event.data.key_event.key),
+                    .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
                     .mods = KeyModifiers{
                         .shift = c_event.data.key_event.shift,
                         .control = c_event.data.key_event.control,
-                        .alt = c_event.data.key_event.alt,
+                        .opt = c_event.data.key_event.opt,
                         .command = c_event.data.key_event.command,
                     },
                 },

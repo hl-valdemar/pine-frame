@@ -35,23 +35,17 @@ pub fn main() !void {
         while (window.pollEvent()) |event| {
             switch (event) {
                 .key_down => |key_event| {
-                    std.log.info("Key pressed: {s}{s}{s}{s}{s}", .{
-                        @tagName(key_event.key),
-                        if (key_event.mods.shift) "+shift" else "",
-                        if (key_event.mods.control) "+ctrl" else "",
-                        if (key_event.mods.alt) "+alt" else "",
-                        if (key_event.mods.command) "+cmd" else "",
-                    });
+                    logKeyEvent("pressed", &key_event);
 
                     // Exit on escape key
-                    if (key_event.key == .q) {
-                        std.log.info("Q pressed, exiting...", .{});
+                    if (key_event.key == .escape) {
+                        std.log.info("Escape pressed, exiting...", .{});
                         window.requestClose();
                         break;
                     }
                 },
                 .key_up => |key_event| {
-                    std.log.info("Key released: {s}", .{@tagName(key_event.key)});
+                    logKeyEvent("released", &key_event);
                 },
                 .window_close => {
                     std.log.info("Window close requested", .{});
@@ -65,4 +59,15 @@ pub fn main() !void {
     }
 
     std.log.info("Exiting...", .{});
+}
+
+fn logKeyEvent(msg: []const u8, key_event: *const pw.KeyEvent) void {
+    std.log.info("Key {s}: {s}{s}{s}{s}{s}", .{
+        msg,
+        @tagName(key_event.key),
+        if (key_event.mods.shift) "+shift" else "",
+        if (key_event.mods.control) "+ctrl" else "",
+        if (key_event.mods.opt) "+opt" else "",
+        if (key_event.mods.command) "+cmd" else "",
+    });
 }

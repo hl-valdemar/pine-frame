@@ -61,104 +61,6 @@ struct PineWindow {
 static NSApplication *g_app = nil;
 static bool g_platform_initialized = false;
 
-// convert macOS keycode to PineKeyCode
-static PineKeyCode convert_keycode(unsigned short keyCode) {
-  switch (keyCode) {
-  case 0:
-    return PINE_KEY_A;
-  case 1:
-    return PINE_KEY_S;
-  case 2:
-    return PINE_KEY_D;
-  case 3:
-    return PINE_KEY_F;
-  case 4:
-    return PINE_KEY_H;
-  case 5:
-    return PINE_KEY_G;
-  case 6:
-    return PINE_KEY_Z;
-  case 7:
-    return PINE_KEY_X;
-  case 8:
-    return PINE_KEY_C;
-  case 9:
-    return PINE_KEY_V;
-  case 11:
-    return PINE_KEY_B;
-  case 12:
-    return PINE_KEY_Q;
-  case 13:
-    return PINE_KEY_W;
-  case 14:
-    return PINE_KEY_E;
-  case 15:
-    return PINE_KEY_R;
-  case 16:
-    return PINE_KEY_Y;
-  case 17:
-    return PINE_KEY_T;
-  case 18:
-    return PINE_KEY_1;
-  case 19:
-    return PINE_KEY_2;
-  case 20:
-    return PINE_KEY_3;
-  case 21:
-    return PINE_KEY_4;
-  case 22:
-    return PINE_KEY_6;
-  case 23:
-    return PINE_KEY_5;
-  case 25:
-    return PINE_KEY_9;
-  case 26:
-    return PINE_KEY_7;
-  case 28:
-    return PINE_KEY_8;
-  case 29:
-    return PINE_KEY_0;
-  case 31:
-    return PINE_KEY_O;
-  case 32:
-    return PINE_KEY_U;
-  case 34:
-    return PINE_KEY_I;
-  case 35:
-    return PINE_KEY_P;
-  case 37:
-    return PINE_KEY_L;
-  case 38:
-    return PINE_KEY_J;
-  case 40:
-    return PINE_KEY_K;
-  case 45:
-    return PINE_KEY_N;
-  case 46:
-    return PINE_KEY_M;
-  case 49:
-    return PINE_KEY_SPACE;
-  case 36:
-    return PINE_KEY_ENTER;
-  case 48:
-    return PINE_KEY_TAB;
-  case 51:
-    return PINE_KEY_BACKSPACE;
-  case 53:
-    return PINE_KEY_ESCAPE;
-  case 123:
-    return PINE_KEY_LEFT;
-  case 124:
-    return PINE_KEY_RIGHT;
-  case 125:
-    return PINE_KEY_DOWN;
-  case 126:
-    return PINE_KEY_UP;
-  default:
-    return PINE_KEY_UNKNOWN;
-  }
-}
-
 // PineNSWindow implementation
 @implementation PineNSWindow
 
@@ -166,12 +68,12 @@ static PineKeyCode convert_keycode(unsigned short keyCode) {
   if (self.pineWindow) {
     PineEvent pine_event = {0};
     pine_event.type = PINE_EVENT_KEY_DOWN;
-    pine_event.data.key_event.key = convert_keycode([event keyCode]);
+    pine_event.data.key_event.key = [event keyCode];
     pine_event.data.key_event.shift =
         ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     pine_event.data.key_event.control =
         ([event modifierFlags] & NSEventModifierFlagControl) != 0;
-    pine_event.data.key_event.alt =
+    pine_event.data.key_event.opt =
         ([event modifierFlags] & NSEventModifierFlagOption) != 0;
     pine_event.data.key_event.command =
         ([event modifierFlags] & NSEventModifierFlagCommand) != 0;
@@ -184,12 +86,12 @@ static PineKeyCode convert_keycode(unsigned short keyCode) {
   if (self.pineWindow) {
     PineEvent pine_event = {0};
     pine_event.type = PINE_EVENT_KEY_UP;
-    pine_event.data.key_event.key = convert_keycode([event keyCode]);
+    pine_event.data.key_event.key = [event keyCode];
     pine_event.data.key_event.shift =
         ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     pine_event.data.key_event.control =
         ([event modifierFlags] & NSEventModifierFlagControl) != 0;
-    pine_event.data.key_event.alt =
+    pine_event.data.key_event.opt =
         ([event modifierFlags] & NSEventModifierFlagOption) != 0;
     pine_event.data.key_event.command =
         ([event modifierFlags] & NSEventModifierFlagCommand) != 0;

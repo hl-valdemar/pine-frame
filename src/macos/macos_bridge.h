@@ -88,7 +88,7 @@ typedef struct {
       PineKeyCode key;
       bool shift;
       bool control;
-      bool alt;
+      bool opt;
       bool command; // macOS specific
     } key_event;
   } data;
