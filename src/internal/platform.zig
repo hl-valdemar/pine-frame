@@ -25,6 +25,7 @@ pub const Window = struct {
 
     pub fn create(config: WindowConfig) !Window {
         // convert zig string to null-terminated c string
+        // todo: support "infinite" strings
         var title_buffer: [256]u8 = undefined;
         const title_cstr = std.fmt.bufPrintZ(&title_buffer, "{s}", .{config.title}) catch {
             return error.TitleTooLong;
