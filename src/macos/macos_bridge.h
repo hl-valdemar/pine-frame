@@ -8,10 +8,10 @@
 extern "C" {
 #endif
 
-// Forward declarations
+// forward declarations
 typedef struct PineWindow PineWindow;
 
-// Window configuration structure
+// window configuration structure
 typedef struct {
   int32_t width;
   int32_t height;
@@ -22,18 +22,18 @@ typedef struct {
   bool visible;
 } PineWindowConfig;
 
-// Platform initialization
+// platform initialization
 bool pine_platform_init(void);
 void pine_platform_shutdown(void);
 
-// Window management
+// window management
 PineWindow *pine_window_create(const PineWindowConfig *config);
 void pine_window_destroy(PineWindow *window);
 void pine_window_show(PineWindow *window);
 void pine_window_hide(PineWindow *window);
 bool pine_window_should_close(PineWindow *window);
 
-// Event processing
+// event processing
 void pine_platform_poll_events(void);
 
 #ifdef __cplusplus

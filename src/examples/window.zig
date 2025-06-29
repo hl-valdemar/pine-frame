@@ -28,7 +28,7 @@ pub fn main() !void {
     std.log.info("Window created successfully! Starting event loop...", .{});
 
     // simple event loop
-    while (!window.shouldClose()) {
+    while (!try window.shouldClose()) {
         plt.pollEvents();
 
         // add a small delay to prevent excessive cpu usage

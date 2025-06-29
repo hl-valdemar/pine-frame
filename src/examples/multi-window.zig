@@ -40,26 +40,22 @@ pub fn main() !void {
 
     std.log.info("Both windows created successfully! Starting event loop...", .{});
 
-    // track window states
-    var window1_closed = false;
-    var window2_closed = false;
-
     // event loop - very similar to your original!
-    while (!window1_closed or !window2_closed) {
+    while (!(window1.shouldClose() catch true) or // ...shouldClose() fails only if the window was destroyed
+        !(window2.shouldClose() catch true))
+    {
         plt.pollEvents();
 
         // check and close window1 if needed
-        if (!window1_closed and window1.shouldClose()) {
+        if (window1.shouldClose() catch false) { // again, if shouldClose fails, the window is already destroyed
             std.log.info("Main window requested close", .{});
             window1.destroy();
-            window1_closed = true;
         }
 
         // check and close window2 if needed
-        if (!window2_closed and window2.shouldClose()) {
+        if (window2.shouldClose() catch false) {
             std.log.info("Secondary window requested close", .{});
             window2.destroy();
-            window2_closed = true;
         }
 
         // add a small delay to prevent excessive cpu usage

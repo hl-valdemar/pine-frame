@@ -27,7 +27,7 @@ static bool g_platform_initialized = false;
 }
 @end
 
-bool pine_platform_init(void) {
+bool pine_platform_init() {
   if (g_platform_initialized) {
     return true;
   }
@@ -118,7 +118,9 @@ PineWindow *pine_window_create(const PineWindowConfig *config) {
 
     // show window if requested
     if (config->visible) {
+      // [window->ns_window orderFrontRegardless];
       [window->ns_window makeKeyAndOrderFront:nil];
+      [g_app activateIgnoringOtherApps:YES];
     }
 
     return window;
@@ -157,7 +159,9 @@ void pine_window_show(PineWindow *window) {
   }
 
   @autoreleasepool {
+    // [window->ns_window orderFrontRegardless];
     [window->ns_window makeKeyAndOrderFront:nil];
+    [g_app activateIgnoringOtherApps:YES];
   }
 }
 
