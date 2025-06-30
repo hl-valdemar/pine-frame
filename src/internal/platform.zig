@@ -104,9 +104,12 @@ pub const Event = union(EventType) {
     window_close: void,
 };
 
+pub const WindowID = usize;
+
 pub const Window = struct {
     allocator: Allocator,
     handle: ?*c.PineWindow,
+    id: WindowID,
     destroyed: bool,
     key_states: std.AutoHashMap(KeyCode, EventType),
 
@@ -136,6 +139,7 @@ pub const Window = struct {
         return Window{
             .allocator = allocator,
             .handle = handle.?,
+            .id = nextId(),
             .destroyed = false,
             .key_states = std.AutoHashMap(KeyCode, EventType).init(allocator),
         };
@@ -244,3 +248,9 @@ pub const Platform = struct {
         c.pine_platform_poll_events();
     }
 };
+
+const next_id: WindowID = 0;
+fn nextId() WindowID {
+    defer next_id += 1;
+    return next_id;
+}
