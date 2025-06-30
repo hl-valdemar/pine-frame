@@ -2,14 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const builtin = @import("builtin");
 
-// platform-specific c imports - this is internal to the library
-const c = switch (builtin.os.tag) {
-    .macos => @cImport({
-        @cInclude("macos.h");
-    }),
-    // future platforms...
-    else => @compileError("Unsupported platform"),
-};
+const c = @import("c-imports").c;
 
 pub const PineWindowError = error{
     PlatformInitFailed,

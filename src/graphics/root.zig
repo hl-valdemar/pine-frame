@@ -12,10 +12,18 @@ const std = @import("std");
 
 pub const log = @import("log.zig");
 
-pub const beginPass = render.beginPass;
-pub const endPass = render.endPass;
-pub const commit = render.commit;
+// pub const commit = render.commit;
+
+pub const Context = context.Context;
+pub const Swapchain = context.Swapchain;
+pub const RenderPass = context.RenderPass;
+pub const beginFrame = context.beginFrame;
+pub const endFrame = context.endFrame;
+pub const beginPass = context.beginPass;
+pub const endPass = context.endPass;
+pub const present = context.present;
 
 //-- private imports --//
 
-const render = @import("render.zig");
+// const render = @import("render.zig");
+const context = @import("context.zig");

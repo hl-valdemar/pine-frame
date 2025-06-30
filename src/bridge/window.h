@@ -1,5 +1,5 @@
-#ifndef MACOS_WINDOW_H
-#define MACOS_WINDOW_H
+#ifndef PINE_WINDOW_H
+#define PINE_WINDOW_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,10 +8,9 @@
 extern "C" {
 #endif
 
-//-- WINDOWING --//
-
 // forward declarations
 typedef struct PineWindow PineWindow;
+typedef struct PineSwapchain PineSwapchain;
 
 // window configuration structure
 typedef struct {
@@ -32,7 +31,7 @@ typedef enum {
   PINE_EVENT_WINDOW_CLOSE,
 } PineEventType;
 
-// Key codes (macOS virtual key codes)
+// key codes
 typedef enum {
   PINE_KEY_UNKNOWN = -1,
   PINE_KEY_A = 0,
@@ -91,7 +90,7 @@ typedef struct {
       bool shift;
       bool control;
       bool opt;
-      bool command; // macOS specific
+      bool command;
     } key_event;
   } data;
 } PineEvent;
@@ -108,43 +107,22 @@ void pine_window_hide(PineWindow *window);
 bool pine_window_should_close(PineWindow *window);
 void pine_window_request_close(PineWindow *window);
 
+// get native handle for graphics backend
+void *pine_window_get_native_handle(PineWindow *window);
+void pine_window_get_size(PineWindow *window, uint32_t *width,
+                          uint32_t *height);
+
 // event processing
 void pine_platform_poll_events(void);
 bool pine_window_poll_event(PineWindow *window, PineEvent *event);
 
-//-- RENDERING --//
-
-// render pass action types
-typedef enum {
-  PINE_ACTION_DONTCARE = 0,
-  PINE_ACTION_CLEAR = 1,
-  PINE_ACTION_LOAD = 2,
-} PineLoadAction;
-
-// render pass action
-typedef struct {
-  PineLoadAction action;
-  float r, g, b, a;
-} PineColorAttachment;
-
-typedef struct {
-  PineLoadAction action;
-  float depth;
-  uint8_t stencil;
-} PineDepthStencilAttachment;
-
-typedef struct {
-  PineColorAttachment color;
-  PineDepthStencilAttachment depth_stencil;
-} PinePassAction;
-
-void pine_window_begin_pass(PineWindow *window,
-                            const PinePassAction *pass_action);
-void pine_window_end_pass(PineWindow *window);
-void pine_window_commit(PineWindow *window);
+// graphics integration: instead of rendering functions, provide a way to
+// get/set swapchain
+void pine_window_set_swapchain(PineWindow *window, PineSwapchain *swapchain);
+PineSwapchain *pine_window_get_swapchain(PineWindow *window);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // MACOS_WINDOW_H
+#endif // PINE_WINDOW_H

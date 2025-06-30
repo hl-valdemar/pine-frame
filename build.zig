@@ -4,19 +4,6 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // create the platform dependencies module
-    const platform_dep_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // create the platform dependencies library
-    const platform_dep_lib = b.addSharedLibrary(.{
-        // .linkage = .static,
-        .name = "platform-dependencies",
-        .root_module = platform_dep_mod,
-    });
-
     // create the pine-window library module
     const window_lib_mod = b.addModule("pine-window", .{
         .root_source_file = b.path("src/window/root.zig"),
@@ -45,33 +32,83 @@ pub fn build(b: *std.Build) !void {
         .root_module = graphics_lib_mod,
     });
 
+    // create the c-imports library module for shared c imports
+    const c_imports_mod = b.addModule("c-imports", .{
+        .root_source_file = b.path("src/c-imports.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    c_imports_mod.addIncludePath(b.path("src/bridge"));
+
     window_lib_mod.addImport("pine-graphics", graphics_lib_mod);
+    window_lib_mod.addImport("c-imports", c_imports_mod);
+
     graphics_lib_mod.addImport("pine-window", window_lib_mod);
+    graphics_lib_mod.addImport("c-imports", c_imports_mod);
 
     // link platform specific dependencies
     if (target.result.os.tag == .macos) {
-        platform_dep_lib.addCSourceFile(.{
-            .file = b.path("src/bridge/macos.m"),
-            .language = .objective_c,
-            .flags = &[_][]const u8{
-                // "-fobjc-arc", // enable automatic reference counting
-                "-fmodules", // enable modules for better cocoa integration
-            },
+        // const platform_dep_lib = b.addStaticLibrary(.{
+        //     .name = "pine-platform-dep",
+        //     .target = target,
+        //     .optimize = optimize,
+        // });
+        //
+        // platform_dep_lib.addCSourceFile(.{
+        //     .file = b.path("src/bridge/window/macos.m"),
+        //     .language = .objective_c,
+        //     .flags = &[_][]const u8{"-fmodules"},
+        // });
+        // platform_dep_lib.addCSourceFile(.{
+        //     .file = b.path("src/bridge/graphics/metal-backend.m"),
+        //     .language = .objective_c,
+        //     .flags = &[_][]const u8{"-fmodules"},
+        // });
+        //
+        // platform_dep_lib.linkFramework("Metal");
+        // platform_dep_lib.linkFramework("MetalKit");
+        // platform_dep_lib.linkFramework("QuartzCore");
+        // platform_dep_lib.linkFramework("Cocoa"); // For NSView
+        //
+        // window_lib.linkLibrary(platform_dep_lib);
+        // graphics_lib.linkLibrary(platform_dep_lib);
+
+        // window module only needs window-related frameworks
+        const macos_window_lib = b.addStaticLibrary(.{
+            .name = "pine-macos-window",
+            .target = target,
+            .optimize = optimize,
         });
 
-        platform_dep_lib.linkFramework("Cocoa");
-        platform_dep_lib.linkFramework("Foundation");
-        platform_dep_lib.linkFramework("Metal");
-        platform_dep_lib.linkFramework("MetalKit");
-        platform_dep_lib.linkFramework("QuartzCore");
+        macos_window_lib.addCSourceFile(.{
+            .file = b.path("src/bridge/window/macos.m"),
+            .language = .objective_c,
+            .flags = &[_][]const u8{"-fmodules"},
+        });
+        macos_window_lib.linkFramework("Cocoa");
+        macos_window_lib.linkFramework("Foundation");
 
-        // link pine-window and pine-graphics dependencies
-        window_lib.linkLibrary(platform_dep_lib);
-        graphics_lib.linkLibrary(platform_dep_lib);
+        window_lib.linkLibrary(macos_window_lib);
 
-        // add include path to the module for @cImport to work
-        window_lib.addIncludePath(b.path("src/bridge"));
-        graphics_lib.addIncludePath(b.path("src/bridge"));
+        // graphics module gets its own metal backend
+        const metal_backend_lib = b.addStaticLibrary(.{
+            .name = "pine-metal-backend",
+            .target = target,
+            .optimize = optimize,
+        });
+
+        metal_backend_lib.addCSourceFile(.{
+            .file = b.path("src/bridge/graphics/metal-backend.m"),
+            .language = .objective_c,
+            .flags = &[_][]const u8{"-fmodules"},
+        });
+
+        metal_backend_lib.linkFramework("Metal");
+        metal_backend_lib.linkFramework("MetalKit");
+        metal_backend_lib.linkFramework("QuartzCore");
+        metal_backend_lib.linkFramework("Cocoa"); // For NSView
+
+        graphics_lib.linkLibrary(metal_backend_lib);
     }
 
     // install relevant libraries in the zig-out folder
