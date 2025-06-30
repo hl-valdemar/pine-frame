@@ -20,7 +20,7 @@ pub fn main() !void {
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
-        .title = "Pine Window - Keyboard Example",
+        .title = "Pine Window # Keyboard Example",
         .resizable = true,
         .visible = true,
     });

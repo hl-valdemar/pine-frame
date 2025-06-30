@@ -20,7 +20,7 @@ pub fn main() !void {
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
-        .title = "Pine Window - Main Window",
+        .title = "Pine Window # Main Window",
         .resizable = true,
         .visible = true,
     });
@@ -30,7 +30,7 @@ pub fn main() !void {
         .width = 400,
         .height = 300,
         .position = .{ .x = 20, .y = 20 },
-        .title = "Pine Window - Secondary Window",
+        .title = "Pine Window # Secondary Window",
         .resizable = true,
         .visible = true,
     });

@@ -33,7 +33,7 @@ pub fn main() !void {
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
-        .title = "Pine Window - Clear Example (New Architecture)",
+        .title = "Pine Window # Clear Example",
         .resizable = true,
         .visible = true,
     });
