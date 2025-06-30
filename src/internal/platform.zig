@@ -107,7 +107,7 @@ pub const Event = union(EventType) {
 pub const WindowID = usize;
 
 pub const Window = struct {
-    const next_id: WindowID = 0;
+    var next_id: WindowID = 0;
 
     allocator: Allocator,
     handle: ?*c.PineWindow,
