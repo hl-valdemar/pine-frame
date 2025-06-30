@@ -16,7 +16,7 @@ pub fn main() !void {
     std.log.info("creating graphics context...", .{});
 
     // create graphics context (auto-selects best backend for platform)
-    var graphics_ctx = try pg.Context.create(.auto);
+    var graphics_ctx = try pg.GraphicsContext.create(.auto);
     defer graphics_ctx.destroy();
 
     // query and log graphics capabilities
