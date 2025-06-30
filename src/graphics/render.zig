@@ -1,6 +1,6 @@
 const builtin = @import("builtin");
 
-const Window = @import("../window/platform.zig").Window;
+const Window = @import("pine-window").Window;
 
 // platform-specific c imports - this is internal to the library
 const c = switch (builtin.os.tag) {

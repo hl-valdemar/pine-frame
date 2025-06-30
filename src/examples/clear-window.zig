@@ -1,5 +1,6 @@
 const std = @import("std");
 const pw = @import("pine-window");
+const pg = @import("pine-graphics");
 
 // use pine-ecs' logging format
 pub const std_options = std.Options{
@@ -31,14 +32,14 @@ pub fn main() !void {
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        pw.render.beginPass(&window, .{
+        pg.render.beginPass(&window, .{
             .color = .{ .action = .clear },
         });
 
         // render logic here...
 
-        pw.render.endPass(&window);
-        pw.render.commit(&window);
+        pg.render.endPass(&window);
+        pg.render.commit(&window);
 
         // add a small delay to prevent excessive cpu usage
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS

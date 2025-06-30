@@ -13,7 +13,6 @@ const std = @import("std");
 
 //-- public exports --//
 
-pub const render = @import("graphics/render.zig");
 pub const log = @import("log.zig");
 
 pub const Window = platform.Window;
@@ -30,4 +29,4 @@ pub const KeyEvent = platform.KeyEvent;
 
 //-- private imports --//
 
-const platform = @import("window/platform.zig");
+const platform = @import("platform.zig");
