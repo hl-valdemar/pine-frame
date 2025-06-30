@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const builtin = @import("builtin");
 
 // platform-specific c imports - this is internal to the library
@@ -93,6 +94,7 @@ pub const KeyModifiers = struct {
 pub const KeyEvent = struct {
     key: KeyCode,
     mods: KeyModifiers,
+    is_repeat: bool = false,
 };
 
 pub const Event = union(EventType) {
@@ -103,10 +105,14 @@ pub const Event = union(EventType) {
 };
 
 pub const Window = struct {
+    allocator: Allocator,
     handle: ?*c.PineWindow,
     destroyed: bool,
+    key_states: std.AutoHashMap(KeyCode, EventType),
 
     pub fn create(config: WindowConfig) !Window {
+        const allocator = std.heap.page_allocator;
+
         // convert zig string to null-terminated c string
         // todo: support "infinite" strings
         var title_buffer: [256]u8 = undefined;
@@ -128,8 +134,10 @@ pub const Window = struct {
         if (handle == null) return PineWindowError.WindowCreationFailed;
 
         return Window{
+            .allocator = allocator,
             .handle = handle.?,
             .destroyed = false,
+            .key_states = std.AutoHashMap(KeyCode, EventType).init(allocator),
         };
     }
 
@@ -138,6 +146,7 @@ pub const Window = struct {
             c.pine_window_destroy(self.handle.?);
             self.handle = null;
             self.destroyed = true;
+            self.key_states.deinit();
         }
     }
 
@@ -159,7 +168,7 @@ pub const Window = struct {
         c.pine_window_request_close(self.handle.?);
     }
 
-    pub fn pollEvent(self: *Window) ?Event {
+    pub fn pollEvent(self: *Window) !?Event {
         var c_event: c.PineEvent = undefined;
         if (!c.pine_window_poll_event(self.handle, &c_event)) {
             return null;
@@ -167,8 +176,8 @@ pub const Window = struct {
 
         return switch (c_event.type) {
             c.PINE_EVENT_NONE => Event{ .none = {} },
-            c.PINE_EVENT_KEY_DOWN => Event{
-                .key_down = KeyEvent{
+            c.PINE_EVENT_KEY_DOWN => {
+                var key_event = KeyEvent{
                     .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
                     .mods = KeyModifiers{
                         .shift = c_event.data.key_event.shift,
@@ -176,10 +185,18 @@ pub const Window = struct {
                         .opt = c_event.data.key_event.opt,
                         .command = c_event.data.key_event.command,
                     },
-                },
+                    .is_repeat = false,
+                };
+
+                const res = try self.key_states.getOrPut(key_event.key);
+                if (res.found_existing and res.value_ptr.* == .key_down) {
+                    key_event.is_repeat = true;
+                }
+
+                return Event{ .key_down = key_event };
             },
-            c.PINE_EVENT_KEY_UP => Event{
-                .key_up = KeyEvent{
+            c.PINE_EVENT_KEY_UP => {
+                var key_event = KeyEvent{
                     .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
                     .mods = KeyModifiers{
                         .shift = c_event.data.key_event.shift,
@@ -187,7 +204,15 @@ pub const Window = struct {
                         .opt = c_event.data.key_event.opt,
                         .command = c_event.data.key_event.command,
                     },
-                },
+                    .is_repeat = false,
+                };
+
+                const res = try self.key_states.getOrPut(key_event.key);
+                if (res.found_existing and res.value_ptr.* == .key_up) {
+                    key_event.is_repeat = true;
+                }
+
+                return Event{ .key_up = key_event };
             },
             c.PINE_EVENT_WINDOW_CLOSE => Event{ .window_close = {} },
             else => Event{ .none = {} },

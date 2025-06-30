@@ -32,7 +32,7 @@ pub fn main() !void {
         plt.pollEvents();
 
         // process all pending events
-        while (window.pollEvent()) |event| {
+        while (try window.pollEvent()) |event| {
             switch (event) {
                 .key_down => |key_event| {
                     logKeyEvent("pressed", &key_event);
