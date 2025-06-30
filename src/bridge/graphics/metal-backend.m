@@ -173,27 +173,27 @@ static void metal_resize_swapchain(PineSwapchain *swapchain, uint32_t width,
   }
 }
 
-// frame management
-static NSAutoreleasePool *g_frame_pool = nil;
-
-static void metal_begin_frame(void) {
-  if (g_frame_pool) {
-    [g_frame_pool release];
-  }
-  g_frame_pool = [[NSAutoreleasePool alloc] init];
-}
-
-static void metal_end_frame(void) {
-  if (g_frame_pool) {
-    [g_frame_pool release];
-    g_frame_pool = nil;
-  }
-}
+// // frame management
+// static NSAutoreleasePool *g_frame_pool = nil;
+//
+// static void metal_begin_frame(void) {
+//   if (g_frame_pool) {
+//     [g_frame_pool release];
+//   }
+//   g_frame_pool = [[NSAutoreleasePool alloc] init];
+// }
+//
+// static void metal_end_frame(void) {
+//   if (g_frame_pool) {
+//     [g_frame_pool release];
+//     g_frame_pool = nil;
+//   }
+// }
 
 static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
                                                const PinePassAction *action) {
-  // allocate frame pool
-  metal_begin_frame();
+  // // allocate frame pool
+  // metal_begin_frame();
 
   if (!swapchain)
     return NULL;
@@ -290,8 +290,8 @@ static void metal_present(PineSwapchain *swapchain) {
   swapchain->current_command_buffer = nil;
   swapchain->current_drawable = nil;
 
-  // deallocate frame pool
-  metal_end_frame();
+  // // deallocate frame pool
+  // metal_end_frame();
 }
 
 static void metal_get_capabilities(PineGraphicsContext *ctx,
