@@ -73,7 +73,7 @@ pub const Context = struct {
 };
 
 pub const Swapchain = struct {
-    context: Context,
+    context: *Context,
     handle: *c.PineSwapchain,
     window: *Window,
 
@@ -98,7 +98,7 @@ pub const Swapchain = struct {
         c.pine_window_set_swapchain(window.handle, handle);
 
         return Swapchain{
-            .context = context.*,
+            .context = context,
             .handle = handle.?,
             .window = window,
         };
