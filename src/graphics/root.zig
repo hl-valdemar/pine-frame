@@ -14,7 +14,7 @@ pub const log = @import("log.zig");
 
 // pub const commit = render.commit;
 
-pub const Context = context.Context;
+pub const GraphicsContext = context.Context;
 pub const Swapchain = context.Swapchain;
 pub const RenderPass = context.RenderPass;
 // pub const beginFrame = context.beginFrame;
