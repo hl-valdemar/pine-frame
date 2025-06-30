@@ -7,13 +7,13 @@ pub const std_options = std.Options{
 };
 
 pub fn main() !void {
-    std.log.info("Initializing Pine Window platform...", .{});
+    std.log.info("initializing pine window platform...", .{});
 
     // initialize the platform
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
-    std.log.info("Creating window...", .{});
+    std.log.info("creating window...", .{});
 
     // create a window
     var window = try pw.Window.create(std.heap.page_allocator, .{
@@ -25,7 +25,7 @@ pub fn main() !void {
     });
     defer window.destroy();
 
-    std.log.info("Window created! Press keys to see events. Press ESC to exit.", .{});
+    std.log.info("window created! press keys to see events. press esc to exit.", .{});
 
     // event loop with keyboard handling
     while (!(window.shouldClose() catch true)) {
@@ -39,7 +39,7 @@ pub fn main() !void {
 
                     // Exit on escape key
                     if (key_event.key == .escape) {
-                        std.log.info("Escape pressed, exiting...", .{});
+                        std.log.info("escape pressed, exiting...", .{});
                         window.requestClose();
                         break;
                     }
@@ -48,7 +48,7 @@ pub fn main() !void {
                     logKeyEvent("released", &key_event);
                 },
                 .window_close => {
-                    std.log.info("Window close requested", .{});
+                    std.log.info("window close requested", .{});
                 },
                 .none => {},
             }
@@ -58,11 +58,11 @@ pub fn main() !void {
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS
     }
 
-    std.log.info("Exiting...", .{});
+    std.log.info("exiting...", .{});
 }
 
 fn logKeyEvent(msg: []const u8, key_event: *const pw.KeyEvent) void {
-    std.log.info("Key {s}: {s}{s}{s}{s}{s}", .{
+    std.log.info("key {s}: {s}{s}{s}{s}{s}", .{
         msg,
         @tagName(key_event.key),
         if (key_event.mods.shift) "+shift" else "",

@@ -1,5 +1,7 @@
 #import "macos_bridge.h"
 #import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 // simple event queue implementation
 #define MAX_EVENTS 256
@@ -49,12 +51,57 @@ static bool event_queue_pop(EventQueue *queue, PineEvent *event) {
 @property(nonatomic, assign) struct PineWindow *pineWindow;
 @end
 
+// custom view for Metal rendering
+@interface PineMetalView : NSView
+@property(nonatomic, retain) CAMetalLayer *metalLayer;
+@end
+
+@implementation PineMetalView
+
++ (Class)layerClass {
+  return [CAMetalLayer class];
+}
+
+- (CAMetalLayer *)metalLayer {
+  return (CAMetalLayer *)self.layer;
+}
+
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  if (self) {
+    self.wantsLayer = YES;
+    self.layer = [CAMetalLayer layer];
+    self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    self.metalLayer.framebufferOnly = YES;
+  }
+  return self;
+}
+
+- (void)viewDidMoveToWindow {
+  [super viewDidMoveToWindow];
+  // update the layer's contentsScale when moving to a window
+  if (self.window) {
+    self.metalLayer.contentsScale = self.window.backingScaleFactor;
+  }
+}
+
+@end
+
 // internal window structure
 struct PineWindow {
   PineNSWindow *ns_window;
+  PineMetalView *metal_view;
   WindowDelegate *delegate;
   bool should_close;
   EventQueue event_queue;
+
+  // metal objects
+  id<MTLDevice> device;
+  id<MTLCommandQueue> command_queue;
+  id<CAMetalDrawable> current_drawable;
+  id<MTLCommandBuffer> current_command_buffer;
+  id<MTLRenderCommandEncoder> current_render_encoder;
+  MTLRenderPassDescriptor *render_pass_descriptor;
 };
 
 // global application state
@@ -104,6 +151,7 @@ static bool g_platform_initialized = false;
 
 // WindowDelegate implementation
 @implementation WindowDelegate
+
 - (BOOL)windowShouldClose:(NSWindow *)sender {
   if (self.pineWindow) {
     self.pineWindow->should_close = true;
@@ -115,6 +163,17 @@ static bool g_platform_initialized = false;
   }
   return NO; // we'll handle closing manually
 }
+
+- (void)windowDidResize:(NSNotification *)notification {
+  if (self.pineWindow && self.pineWindow->metal_view) {
+    // update drawable size when window resizes
+    CGSize viewSize = self.pineWindow->metal_view.bounds.size;
+    CGFloat scale = self.pineWindow->ns_window.backingScaleFactor;
+    self.pineWindow->metal_view.metalLayer.drawableSize =
+        CGSizeMake(viewSize.width * scale, viewSize.height * scale);
+  }
+}
+
 @end
 
 bool pine_platform_init(void) {
@@ -205,6 +264,47 @@ PineWindow *pine_window_create(const PineWindowConfig *config) {
     [window->ns_window setTitle:title];
     [window->ns_window center];
 
+    // METAL SETUP START //
+
+    // create metal device and command queue
+    window->device = MTLCreateSystemDefaultDevice();
+    if (!window->device) {
+      NSLog(@"Failed to create Metal device");
+      [window->ns_window release];
+      free(window);
+      return NULL;
+    }
+
+    window->command_queue = [window->device newCommandQueue];
+    if (!window->command_queue) {
+      NSLog(@"Failed to create Metal command queue");
+      [window->ns_window release];
+      free(window);
+      return NULL;
+    }
+
+    // create the metal view
+    NSRect contentRect = [[window->ns_window contentView] bounds];
+    window->metal_view = [[PineMetalView alloc] initWithFrame:contentRect];
+    window->metal_view.autoresizingMask =
+        NSViewWidthSizable | NSViewHeightSizable;
+
+    // configure the metal layer
+    window->metal_view.metalLayer.device = window->device;
+    window->metal_view.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    window->metal_view.metalLayer.framebufferOnly = YES;
+
+    // set the view as the window's content view
+    [window->ns_window setContentView:window->metal_view];
+
+    // update drawable size
+    CGSize viewSize = window->metal_view.bounds.size;
+    CGFloat scale = window->ns_window.backingScaleFactor;
+    window->metal_view.metalLayer.drawableSize =
+        CGSizeMake(viewSize.width * scale, viewSize.height * scale);
+
+    // METAL SETUP END //
+
     // create and set up the delegate
     window->delegate = [[WindowDelegate alloc] init];
     window->delegate.pineWindow = window;
@@ -236,6 +336,19 @@ void pine_window_destroy(PineWindow *window) {
       // properly release the delegate
       [window->delegate release];
       window->delegate = nil;
+    }
+
+    // clean up metal resources
+    window->current_render_encoder = nil;
+    window->render_pass_descriptor = nil;
+    window->current_command_buffer = nil;
+    window->current_drawable = nil;
+    window->command_queue = nil;
+    window->device = nil;
+
+    if (window->metal_view) {
+      [window->metal_view release];
+      window->metal_view = nil;
     }
 
     if (window->ns_window) {
@@ -312,5 +425,84 @@ void pine_platform_poll_events(void) {
                                          dequeue:YES])) {
       [g_app sendEvent:event];
     }
+  }
+}
+
+// RENDERING FUNCTIONS //
+
+void pine_window_begin_pass(PineWindow *window,
+                            const PinePassAction *pass_action) {
+  if (!window || !window->metal_view) {
+    return;
+  }
+
+  // @autoreleasepool {
+  // get the next drawable
+  window->current_drawable = [window->metal_view.metalLayer nextDrawable];
+  if (!window->current_drawable) {
+    return;
+  }
+
+  // create command buffer
+  window->current_command_buffer = [window->command_queue commandBuffer];
+  if (!window->current_command_buffer) {
+    window->current_drawable = nil;
+    return;
+  }
+
+  // create render pass descriptor
+  window->render_pass_descriptor =
+      [MTLRenderPassDescriptor renderPassDescriptor];
+
+  // configure color attachment
+  MTLRenderPassColorAttachmentDescriptor *colorAttachment =
+      window->render_pass_descriptor.colorAttachments[0];
+  colorAttachment.texture = window->current_drawable.texture;
+
+  if (pass_action && pass_action->color.action == PINE_ACTION_CLEAR) {
+    colorAttachment.loadAction = MTLLoadActionClear;
+    colorAttachment.clearColor =
+        MTLClearColorMake(pass_action->color.r, pass_action->color.g,
+                          pass_action->color.b, pass_action->color.a);
+  } else if (pass_action && pass_action->color.action == PINE_ACTION_LOAD) {
+    colorAttachment.loadAction = MTLLoadActionLoad;
+  } else {
+    colorAttachment.loadAction = MTLLoadActionDontCare;
+  }
+  colorAttachment.storeAction = MTLStoreActionStore;
+
+  // create render encoder
+  window->current_render_encoder = [window->current_command_buffer
+      renderCommandEncoderWithDescriptor:window->render_pass_descriptor];
+  // }
+}
+
+void pine_window_end_pass(PineWindow *window) {
+  if (!window || !window->current_render_encoder) {
+    return;
+  }
+
+  @autoreleasepool {
+    [window->current_render_encoder endEncoding];
+    [window->current_render_encoder release];
+    window->current_render_encoder = nil;
+    window->render_pass_descriptor = nil;
+  }
+}
+
+void pine_window_commit(PineWindow *window) {
+  if (!window || !window->current_command_buffer || !window->current_drawable) {
+    return;
+  }
+
+  @autoreleasepool {
+    // present drawable, commit command buffer, and wait for completion
+    [window->current_command_buffer presentDrawable:window->current_drawable];
+    [window->current_command_buffer commit];
+    [window->current_command_buffer waitUntilCompleted];
+
+    // clean up
+    window->current_command_buffer = nil;
+    window->current_drawable = nil;
   }
 }

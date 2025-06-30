@@ -7,13 +7,13 @@ pub const std_options = std.Options{
 };
 
 pub fn main() !void {
-    std.log.info("Initializing Pine Window platform...", .{});
+    std.log.info("initializing pine window platform...", .{});
 
     // initialize the platform
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
-    std.log.info("Creating windows...", .{});
+    std.log.info("creating windows...", .{});
 
     // create windows with proper cleanup on errors
     var window1 = try pw.Window.create(std.heap.page_allocator, .{
@@ -38,7 +38,7 @@ pub fn main() !void {
     });
     errdefer window2.destroy();
 
-    std.log.info("Both windows created successfully! Starting event loop...", .{});
+    std.log.info("both windows created successfully! starting event loop...", .{});
 
     // event loop - very similar to your original!
     while (!(window1.shouldClose() catch true) or // ...shouldClose() fails only if the window was destroyed
@@ -48,13 +48,13 @@ pub fn main() !void {
 
         // check and close window1 if needed
         if (window1.shouldClose() catch false) { // again, if shouldClose fails, the window is already destroyed
-            std.log.info("Main window requested close", .{});
+            std.log.info("main window requested close", .{});
             window1.destroy();
         }
 
         // check and close window2 if needed
         if (window2.shouldClose() catch false) {
-            std.log.info("Secondary window requested close", .{});
+            std.log.info("secondary window requested close", .{});
             window2.destroy();
         }
 
@@ -62,5 +62,5 @@ pub fn main() !void {
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS
     }
 
-    std.log.info("All windows closed, exiting...", .{});
+    std.log.info("all windows closed, exiting...", .{});
 }

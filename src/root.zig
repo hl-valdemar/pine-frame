@@ -13,6 +13,7 @@ const std = @import("std");
 
 //-- public exports --//
 
+pub const render = @import("internal/render.zig");
 pub const log = @import("internal/log.zig");
 
 pub const Window = platform.Window;

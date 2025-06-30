@@ -32,6 +32,12 @@ pub fn build(b: *std.Build) !void {
         lib.linkFramework("Cocoa");
         lib.linkFramework("Foundation");
 
+        // RENDERING
+        // TODO: move to pine-graphics
+        lib.linkFramework("Metal");
+        lib.linkFramework("MetalKit");
+        lib.linkFramework("QuartzCore");
+
         // add include path to the module for @cImport to work
         lib.addIncludePath(b.path("src/macos"));
     }

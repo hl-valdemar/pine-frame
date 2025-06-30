@@ -22,6 +22,30 @@ typedef struct {
   bool visible;
 } PineWindowConfig;
 
+// render pass action types
+typedef enum {
+  PINE_ACTION_DONTCARE = 0,
+  PINE_ACTION_CLEAR = 1,
+  PINE_ACTION_LOAD = 2,
+} PineLoadAction;
+
+// render pass action - similar to sokol
+typedef struct {
+  PineLoadAction action;
+  float r, g, b, a;
+} PineColorAttachment;
+
+typedef struct {
+  PineLoadAction action;
+  float depth;
+  uint8_t stencil;
+} PineDepthStencilAttachment;
+
+typedef struct {
+  PineColorAttachment color;
+  PineDepthStencilAttachment depth_stencil;
+} PinePassAction;
+
 // event types
 typedef enum {
   PINE_EVENT_NONE = 0,
@@ -109,6 +133,13 @@ void pine_window_request_close(PineWindow *window);
 // event processing
 void pine_platform_poll_events(void);
 bool pine_window_poll_event(PineWindow *window, PineEvent *event);
+
+// RENDER FUNCTIONS //
+
+void pine_window_begin_pass(PineWindow *window,
+                            const PinePassAction *pass_action);
+void pine_window_end_pass(PineWindow *window);
+void pine_window_commit(PineWindow *window);
 
 #ifdef __cplusplus
 }
