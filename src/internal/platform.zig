@@ -101,7 +101,7 @@ pub const Event = union(EventType) {
     none: void,
     key_down: KeyEvent,
     key_up: KeyEvent,
-    window_close: void,
+    window_close: WindowID,
 };
 
 pub const WindowID = usize;
@@ -220,7 +220,7 @@ pub const Window = struct {
 
                 return Event{ .key_up = key_event };
             },
-            c.PINE_EVENT_WINDOW_CLOSE => Event{ .window_close = {} },
+            c.PINE_EVENT_WINDOW_CLOSE => Event{ .window_close = self.id },
             else => Event{ .none = {} },
         };
     }
