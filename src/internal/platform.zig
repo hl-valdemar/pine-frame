@@ -110,8 +110,8 @@ pub const Window = struct {
     destroyed: bool,
     key_states: std.AutoHashMap(KeyCode, EventType),
 
-    pub fn create(config: WindowConfig) !Window {
-        const allocator = std.heap.page_allocator;
+    pub fn create(allocator: Allocator, config: WindowConfig) !Window {
+        // const allocator = std.heap.page_allocator;
 
         // convert zig string to null-terminated c string
         // todo: support "infinite" strings

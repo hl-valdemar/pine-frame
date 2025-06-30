@@ -16,7 +16,7 @@ pub fn main() !void {
     std.log.info("Creating window...", .{});
 
     // create a window
-    var window = try pw.Window.create(.{
+    var window = try pw.Window.create(std.heap.page_allocator, .{
         .width = 800,
         .height = 600,
         .title = "Pine Window - Basic Example",
