@@ -11,8 +11,8 @@ pub fn build(b: *std.Build) !void {
     });
 
     // create the platform dependencies library
-    const platform_dep_lib = b.addLibrary(.{
-        .linkage = .static,
+    const platform_dep_lib = b.addSharedLibrary(.{
+        // .linkage = .static,
         .name = "platform-dependencies",
         .root_module = platform_dep_mod,
     });
