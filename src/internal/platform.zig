@@ -95,13 +95,16 @@ pub const KeyEvent = struct {
     key: KeyCode,
     mods: KeyModifiers,
     is_repeat: bool = false,
+    window_id: WindowID,
 };
 
 pub const Event = union(EventType) {
     none: void,
     key_down: KeyEvent,
     key_up: KeyEvent,
-    window_close: WindowID,
+    window_close: struct {
+        id: WindowID,
+    },
 };
 
 pub const WindowID = usize;
@@ -192,6 +195,7 @@ pub const Window = struct {
                         .command = c_event.data.key_event.command,
                     },
                     .is_repeat = false,
+                    .window_id = self.id,
                 };
 
                 const res = try self.key_states.getOrPut(key_event.key);
@@ -211,6 +215,7 @@ pub const Window = struct {
                         .command = c_event.data.key_event.command,
                     },
                     .is_repeat = false,
+                    .window_id = self.id,
                 };
 
                 const res = try self.key_states.getOrPut(key_event.key);
@@ -220,7 +225,9 @@ pub const Window = struct {
 
                 return Event{ .key_up = key_event };
             },
-            c.PINE_EVENT_WINDOW_CLOSE => Event{ .window_close = self.id },
+            c.PINE_EVENT_WINDOW_CLOSE => Event{
+                .window_close = .{ .id = self.id },
+            },
             else => Event{ .none = {} },
         };
     }
