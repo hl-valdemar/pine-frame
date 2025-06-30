@@ -1,11 +1,11 @@
 const builtin = @import("builtin");
 
-const Window = @import("platform.zig").Window;
+const Window = @import("../window/platform.zig").Window;
 
 // platform-specific c imports - this is internal to the library
 const c = switch (builtin.os.tag) {
     .macos => @cImport({
-        @cInclude("macos_bridge.h");
+        @cInclude("macos.h");
     }),
     // future platforms...
     else => @compileError("Unsupported platform"),

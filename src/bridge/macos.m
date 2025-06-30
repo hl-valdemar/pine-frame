@@ -1,4 +1,4 @@
-#import "macos_bridge.h"
+#import "macos.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -428,15 +428,12 @@ void pine_platform_poll_events(void) {
   }
 }
 
-// RENDERING FUNCTIONS //
-
 void pine_window_begin_pass(PineWindow *window,
                             const PinePassAction *pass_action) {
   if (!window || !window->metal_view) {
     return;
   }
 
-  // @autoreleasepool {
   // get the next drawable
   window->current_drawable = [window->metal_view.metalLayer nextDrawable];
   if (!window->current_drawable) {
@@ -474,7 +471,6 @@ void pine_window_begin_pass(PineWindow *window,
   // create render encoder
   window->current_render_encoder = [window->current_command_buffer
       renderCommandEncoderWithDescriptor:window->render_pass_descriptor];
-  // }
 }
 
 void pine_window_end_pass(PineWindow *window) {

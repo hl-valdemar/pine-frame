@@ -1,5 +1,5 @@
-#ifndef MACOS_BRIDGE_H
-#define MACOS_BRIDGE_H
+#ifndef MACOS_WINDOW_H
+#define MACOS_WINDOW_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//-- WINDOWING --//
 
 // forward declarations
 typedef struct PineWindow PineWindow;
@@ -21,30 +23,6 @@ typedef struct {
   bool resizable;
   bool visible;
 } PineWindowConfig;
-
-// render pass action types
-typedef enum {
-  PINE_ACTION_DONTCARE = 0,
-  PINE_ACTION_CLEAR = 1,
-  PINE_ACTION_LOAD = 2,
-} PineLoadAction;
-
-// render pass action - similar to sokol
-typedef struct {
-  PineLoadAction action;
-  float r, g, b, a;
-} PineColorAttachment;
-
-typedef struct {
-  PineLoadAction action;
-  float depth;
-  uint8_t stencil;
-} PineDepthStencilAttachment;
-
-typedef struct {
-  PineColorAttachment color;
-  PineDepthStencilAttachment depth_stencil;
-} PinePassAction;
 
 // event types
 typedef enum {
@@ -134,7 +112,31 @@ void pine_window_request_close(PineWindow *window);
 void pine_platform_poll_events(void);
 bool pine_window_poll_event(PineWindow *window, PineEvent *event);
 
-// RENDER FUNCTIONS //
+//-- RENDERING --//
+
+// render pass action types
+typedef enum {
+  PINE_ACTION_DONTCARE = 0,
+  PINE_ACTION_CLEAR = 1,
+  PINE_ACTION_LOAD = 2,
+} PineLoadAction;
+
+// render pass action
+typedef struct {
+  PineLoadAction action;
+  float r, g, b, a;
+} PineColorAttachment;
+
+typedef struct {
+  PineLoadAction action;
+  float depth;
+  uint8_t stencil;
+} PineDepthStencilAttachment;
+
+typedef struct {
+  PineColorAttachment color;
+  PineDepthStencilAttachment depth_stencil;
+} PinePassAction;
 
 void pine_window_begin_pass(PineWindow *window,
                             const PinePassAction *pass_action);
@@ -145,4 +147,4 @@ void pine_window_commit(PineWindow *window);
 }
 #endif
 
-#endif // MACOS_BRIDGE_H
+#endif // MACOS_WINDOW_H

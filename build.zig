@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     // link platform specific dependencies
     if (target.result.os.tag == .macos) {
         lib.addCSourceFile(.{
-            .file = b.path("src/macos/macos_bridge.m"),
+            .file = b.path("src/bridge/macos.m"),
             .language = .objective_c,
             .flags = &[_][]const u8{
                 // "-fobjc-arc", // enable automatic reference counting
@@ -31,15 +31,12 @@ pub fn build(b: *std.Build) !void {
 
         lib.linkFramework("Cocoa");
         lib.linkFramework("Foundation");
-
-        // RENDERING
-        // TODO: move to pine-graphics
         lib.linkFramework("Metal");
         lib.linkFramework("MetalKit");
         lib.linkFramework("QuartzCore");
 
         // add include path to the module for @cImport to work
-        lib.addIncludePath(b.path("src/macos"));
+        lib.addIncludePath(b.path("src/bridge"));
     }
 
     b.installArtifact(lib);

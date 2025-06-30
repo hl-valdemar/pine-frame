@@ -5,7 +5,7 @@ const builtin = @import("builtin");
 // platform-specific c imports - this is internal to the library
 const c = switch (builtin.os.tag) {
     .macos => @cImport({
-        @cInclude("macos_bridge.h");
+        @cInclude("macos.h");
     }),
     // future platforms...
     else => @compileError("Unsupported platform"),
