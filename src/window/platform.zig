@@ -11,11 +11,14 @@ pub const PineWindowError = error{
     WindowCreationFailed,
 };
 
-pub const WindowConfig = struct {
+pub const WindowDesc = struct {
     width: i32 = 800,
     height: i32 = 600,
-    x: i32 = 100,
-    y: i32 = 100,
+    position: struct {
+        x: i32 = 0,
+        y: i32 = 0,
+        center: bool = false,
+    } = .{},
     title: []const u8 = "Pine Window",
     resizable: bool = true,
     visible: bool = true,
@@ -111,9 +114,7 @@ pub const Window = struct {
     destroyed: bool,
     key_states: std.AutoHashMap(KeyCode, EventType),
 
-    pub fn create(allocator: Allocator, config: WindowConfig) !Window {
-        // const allocator = std.heap.page_allocator;
-
+    pub fn create(allocator: Allocator, config: WindowDesc) !Window {
         // convert zig string to null-terminated c string
         // todo: support "infinite" strings
         var title_buffer: [256]u8 = undefined;
@@ -121,11 +122,14 @@ pub const Window = struct {
             return PineWindowError.TitleTooLong;
         };
 
-        const c_config = c.PineWindowConfig{
+        const c_config = c.PineWindowDesc{
             .width = config.width,
             .height = config.height,
-            .x = config.x,
-            .y = config.y,
+            .position = .{
+                .x = config.position.x,
+                .y = config.position.y,
+                .center = config.position.center,
+            },
             .title = title_cstr.ptr,
             .resizable = config.resizable,
             .visible = config.visible,

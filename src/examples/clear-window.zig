@@ -9,17 +9,17 @@ pub const std_options = std.Options{
 pub fn main() !void {
     std.log.info("initializing pine window platform...", .{});
 
-    // Initialize the platform
+    // initialize the platform
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
     std.log.info("creating graphics context...", .{});
 
-    // Create graphics context (auto-selects best backend for platform)
+    // create graphics context (auto-selects best backend for platform)
     var graphics_ctx = try pg.Context.create(.auto);
     defer graphics_ctx.destroy();
 
-    // Query and log graphics capabilities
+    // query and log graphics capabilities
     const caps = graphics_ctx.getCapabilities();
     std.log.info("graphics backend capabilities:", .{});
     std.log.info("  - compute shaders: {}", .{caps.compute_shaders});
@@ -28,10 +28,11 @@ pub fn main() !void {
 
     std.log.info("creating window...", .{});
 
-    // Create a window
+    // create a window
     var window = try pw.Window.create(std.heap.page_allocator, .{
         .width = 800,
         .height = 600,
+        .position = .{ .center = true },
         .title = "Pine Window - Clear Example (New Architecture)",
         .resizable = true,
         .visible = true,
@@ -40,29 +41,25 @@ pub fn main() !void {
 
     std.log.info("creating swapchain...", .{});
 
-    // Create swapchain for the window
+    // create swapchain for the window
     var swapchain = try pg.Swapchain.create(&graphics_ctx, &window);
     defer swapchain.destroy();
 
     std.log.info("starting event loop...", .{});
 
-    // Event loop
+    // event loop
     var frame_count: u32 = 0;
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        // Begin frame (manages autoreleasepool on macOS)
-        pg.beginFrame(&graphics_ctx);
-        defer pg.endFrame(&graphics_ctx);
-
-        // Handle window resize
+        // handle window resize
         // TODO: Add window resize event handling
         // if (window.wasResized()) {
         //     const size = window.getSize();
         //     swapchain.resize(size.width, size.height);
         // }
 
-        // Begin render pass
+        // begin render pass
         var render_pass = try pg.beginPass(&swapchain, .{
             .color = .{
                 .action = .clear,
@@ -73,16 +70,16 @@ pub fn main() !void {
             },
         });
 
-        // Render commands would go here...
+        // render commands would go here...
 
-        // End render pass
+        // end render pass
         render_pass.end();
 
-        // Present the frame
+        // present the frame
         pg.present(&swapchain);
 
         frame_count += 1;
-        std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS
+        std.time.sleep(16 * std.time.ns_per_ms); // ~60 fps
     }
 
     std.log.info("window closed, exiting...", .{});

@@ -19,6 +19,7 @@ pub fn main() !void {
     var window = try pw.Window.create(std.heap.page_allocator, .{
         .width = 800,
         .height = 600,
+        .position = .{ .center = true },
         .title = "Pine Window - Keyboard Example",
         .resizable = true,
         .visible = true,

@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-// Forward declarations
+// forward declarations
 typedef struct PineGraphicsContext PineGraphicsContext;
 typedef struct PineSwapchain PineSwapchain;
 typedef struct PineRenderPass PineRenderPass;
 
-// Backend capabilities
+// backend capabilities
 typedef struct {
   bool compute_shaders;
   bool tessellation;
@@ -22,15 +22,15 @@ typedef struct {
   uint32_t max_vertex_attributes;
 } PineGraphicsCapabilities;
 
-// Swapchain config
+// swapchain config
 typedef struct {
   void *native_window_handle; // NSWindow* on macOS, HWND on Windows, etc.
   uint32_t width;
   uint32_t height;
   bool vsync;
-} PineSwapchainConfig;
+} PineSwapchainDesc;
 
-// Render pass types (moved from macos.h)
+// render pass types
 typedef enum {
   PINE_ACTION_DONTCARE = 0,
   PINE_ACTION_CLEAR = 1,
@@ -53,35 +53,31 @@ typedef struct {
   PineDepthStencilAttachment depth_stencil;
 } PinePassAction;
 
-// Graphics backend interface (vtable pattern)
+// graphics backend interface (vtable pattern)
 typedef struct {
-  // Context management
+  // context management
   PineGraphicsContext *(*create_context)(void);
   void (*destroy_context)(PineGraphicsContext *ctx);
 
-  // Swapchain management
+  // swapchain management
   PineSwapchain *(*create_swapchain)(PineGraphicsContext *ctx,
-                                     const PineSwapchainConfig *config);
+                                     const PineSwapchainDesc *config);
   void (*destroy_swapchain)(PineSwapchain *swapchain);
   void (*resize_swapchain)(PineSwapchain *swapchain, uint32_t width,
                            uint32_t height);
 
-  // Rendering
+  // rendering
   PineRenderPass *(*begin_render_pass)(PineSwapchain *swapchain,
                                        const PinePassAction *action);
   void (*end_render_pass)(PineRenderPass *pass);
   void (*present)(PineSwapchain *swapchain);
 
-  // Frame management
-  void (*begin_frame)(void);
-  void (*end_frame)(void);
-
-  // Capabilities query
+  // capabilities query
   void (*get_capabilities)(PineGraphicsContext *ctx,
                            PineGraphicsCapabilities *caps);
 } PineGraphicsBackend;
 
-// Backend factory functions (implemented per platform)
+// backend factory functions (implemented per platform)
 PineGraphicsBackend *pine_create_metal_backend(void);
 PineGraphicsBackend *pine_create_vulkan_backend(void);
 PineGraphicsBackend *pine_create_d3d12_backend(void);

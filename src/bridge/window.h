@@ -1,5 +1,5 @@
-#ifndef PINE_WINDOW_H
-#define PINE_WINDOW_H
+#ifndef PINE_WINDOW_BACKEND_H
+#define PINE_WINDOW_BACKEND_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,12 +16,15 @@ typedef struct PineSwapchain PineSwapchain;
 typedef struct {
   int32_t width;
   int32_t height;
-  int32_t x;
-  int32_t y;
+  struct {
+    int32_t x;
+    int32_t y;
+    bool center;
+  } position;
   const char *title;
   bool resizable;
   bool visible;
-} PineWindowConfig;
+} PineWindowDesc;
 
 // event types
 typedef enum {
@@ -100,7 +103,7 @@ bool pine_platform_init(void);
 void pine_platform_shutdown(void);
 
 // window management
-PineWindow *pine_window_create(const PineWindowConfig *config);
+PineWindow *pine_window_create(const PineWindowDesc *config);
 void pine_window_destroy(PineWindow *window);
 void pine_window_show(PineWindow *window);
 void pine_window_hide(PineWindow *window);
@@ -125,4 +128,4 @@ PineSwapchain *pine_window_get_swapchain(PineWindow *window);
 }
 #endif
 
-#endif // PINE_WINDOW_H
+#endif // PINE_WINDOW_BACKEND_H

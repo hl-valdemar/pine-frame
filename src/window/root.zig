@@ -17,7 +17,7 @@ pub const log = @import("log.zig");
 
 pub const Window = platform.Window;
 pub const WindowID = platform.WindowID;
-pub const WindowConfig = platform.WindowConfig;
+pub const WindowDesc = platform.WindowDesc;
 pub const Platform = platform.Platform;
 
 // event types

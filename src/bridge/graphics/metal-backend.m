@@ -3,32 +3,32 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-// Metal-specific context
+// metal-specific context
 struct PineGraphicsContext {
   id<MTLDevice> device;
   id<MTLCommandQueue> command_queue;
 };
 
-// Metal-specific swapchain
+// metal-specific swapchain
 struct PineSwapchain {
   PineGraphicsContext *context;
   CAMetalLayer *metal_layer;
   NSView *metal_view;
   id<CAMetalDrawable> current_drawable;
   id<MTLCommandBuffer> current_command_buffer;
-  id<MTLRenderCommandEncoder> current_encoder; // Track current encoder
+  id<MTLRenderCommandEncoder> current_encoder; // track current encoder
   MTLRenderPassDescriptor *render_pass_descriptor;
 };
 
-// Metal-specific render pass
+// metal-specific render pass
 struct PineRenderPass {
   id<MTLRenderCommandEncoder> encoder;
   id<MTLCommandBuffer> command_buffer;
   id<CAMetalDrawable> drawable;
-  PineSwapchain *swapchain; // Back reference to swapchain
+  PineSwapchain *swapchain; // back reference to swapchain
 };
 
-// Custom view for Metal rendering
+// custom view for metal rendering
 @interface PineMetalView : NSView
 @property(nonatomic, retain) CAMetalLayer *metalLayer;
 @end
@@ -63,7 +63,7 @@ struct PineRenderPass {
 
 @end
 
-// Implementation functions
+// implementation functions
 
 static PineGraphicsContext *metal_create_context(void) {
   PineGraphicsContext *ctx = malloc(sizeof(PineGraphicsContext));
@@ -94,9 +94,8 @@ static void metal_destroy_context(PineGraphicsContext *ctx) {
   free(ctx);
 }
 
-static PineSwapchain *
-metal_create_swapchain(PineGraphicsContext *ctx,
-                       const PineSwapchainConfig *config) {
+static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
+                                             const PineSwapchainDesc *config) {
   if (!ctx || !config || !config->native_window_handle)
     return NULL;
 
@@ -111,26 +110,26 @@ metal_create_swapchain(PineGraphicsContext *ctx,
     swapchain->current_encoder = nil;
     swapchain->render_pass_descriptor = nil;
 
-    // Get the NSWindow from the native handle
+    // get the NSWindow from the native handle
     NSWindow *window = (__bridge NSWindow *)config->native_window_handle;
 
-    // Create metal view
+    // create metal view
     NSRect contentRect = [[window contentView] bounds];
     swapchain->metal_view = [[PineMetalView alloc] initWithFrame:contentRect];
     swapchain->metal_view.autoresizingMask =
         NSViewWidthSizable | NSViewHeightSizable;
 
-    // Configure metal layer
+    // configure metal layer
     swapchain->metal_layer =
         ((PineMetalView *)swapchain->metal_view).metalLayer;
     swapchain->metal_layer.device = ctx->device;
     swapchain->metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     swapchain->metal_layer.framebufferOnly = YES;
 
-    // Set as content view
+    // set as content view
     [window setContentView:swapchain->metal_view];
 
-    // Update drawable size
+    // update drawable size
     CGSize viewSize = swapchain->metal_view.bounds.size;
     CGFloat scale = window.backingScaleFactor;
     swapchain->metal_layer.drawableSize =
@@ -145,7 +144,7 @@ static void metal_destroy_swapchain(PineSwapchain *swapchain) {
     return;
 
   @autoreleasepool {
-    // End any pending encoder
+    // end any pending encoder
     if (swapchain->current_encoder) {
       [swapchain->current_encoder endEncoding];
       swapchain->current_encoder = nil;
@@ -176,28 +175,29 @@ static void metal_resize_swapchain(PineSwapchain *swapchain, uint32_t width,
 
 static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
                                                const PinePassAction *action) {
+
   if (!swapchain)
     return NULL;
 
-  // End any previous encoder that wasn't properly ended
+  // end any previous encoder that wasn't properly ended
   if (swapchain->current_encoder) {
     NSLog(@"Warning: Previous render encoder was not ended properly");
     [swapchain->current_encoder endEncoding];
     swapchain->current_encoder = nil;
   }
 
-  // Get drawable
+  // get drawable
   id<CAMetalDrawable> drawable = [swapchain->metal_layer nextDrawable];
   if (!drawable)
     return NULL;
 
-  // Create command buffer
+  // create command buffer
   id<MTLCommandBuffer> cmd_buffer =
       [swapchain->context->command_queue commandBuffer];
   if (!cmd_buffer)
     return NULL;
 
-  // Create render pass descriptor
+  // create render pass descriptor
   MTLRenderPassDescriptor *desc =
       [MTLRenderPassDescriptor renderPassDescriptor];
   MTLRenderPassColorAttachmentDescriptor *color_att = desc.colorAttachments[0];
@@ -214,13 +214,13 @@ static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
   }
   color_att.storeAction = MTLStoreActionStore;
 
-  // Create encoder
+  // create encoder
   id<MTLRenderCommandEncoder> encoder =
       [cmd_buffer renderCommandEncoderWithDescriptor:desc];
   if (!encoder)
     return NULL;
 
-  // Store current drawable/command buffer/encoder in swapchain
+  // store current drawable/command buffer/encoder in swapchain
   swapchain->current_drawable = drawable;
   swapchain->current_command_buffer = cmd_buffer;
   swapchain->current_encoder = encoder;
@@ -240,7 +240,7 @@ static void metal_end_render_pass(PineRenderPass *pass) {
 
   [pass->encoder endEncoding];
 
-  // Clear the encoder reference from swapchain
+  // clear the encoder reference from swapchain
   if (pass->swapchain && pass->swapchain->current_encoder == pass->encoder) {
     pass->swapchain->current_encoder = nil;
   }
@@ -256,7 +256,7 @@ static void metal_present(PineSwapchain *swapchain) {
     return;
   }
 
-  // Make sure any encoder is ended
+  // make sure any encoder is ended
   if (swapchain->current_encoder) {
     NSLog(@"Warning: Encoder still active during present, ending it now");
     [swapchain->current_encoder endEncoding];
@@ -277,32 +277,15 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
   if (!ctx || !caps)
     return;
 
-  // Query Metal device capabilities
+  // query metal device capabilities
   caps->compute_shaders = true;
   caps->tessellation = [ctx->device supportsFamily:MTLGPUFamilyCommon1];
-  caps->geometry_shaders = false; // Metal doesn't support geometry shaders
-  caps->max_texture_size = 16384; // Typical for modern GPUs
+  caps->geometry_shaders = false; // metal doesn't support geometry shaders
+  caps->max_texture_size = 16384; // typical for modern GPUs
   caps->max_vertex_attributes = 31;
 }
 
-// Frame management
-static NSAutoreleasePool *g_frame_pool = nil;
-
-static void metal_begin_frame(void) {
-  if (g_frame_pool) {
-    [g_frame_pool release];
-  }
-  g_frame_pool = [[NSAutoreleasePool alloc] init];
-}
-
-static void metal_end_frame(void) {
-  if (g_frame_pool) {
-    [g_frame_pool release];
-    g_frame_pool = nil;
-  }
-}
-
-// Backend factory
+// backend factory
 PineGraphicsBackend *pine_create_metal_backend(void) {
   static PineGraphicsBackend backend = {
       .create_context = metal_create_context,
@@ -313,8 +296,6 @@ PineGraphicsBackend *pine_create_metal_backend(void) {
       .begin_render_pass = metal_begin_render_pass,
       .end_render_pass = metal_end_render_pass,
       .present = metal_present,
-      .begin_frame = metal_begin_frame,
-      .end_frame = metal_end_frame,
       .get_capabilities = metal_get_capabilities,
   };
 
