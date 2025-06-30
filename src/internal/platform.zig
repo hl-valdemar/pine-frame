@@ -107,6 +107,8 @@ pub const Event = union(EventType) {
 pub const WindowID = usize;
 
 pub const Window = struct {
+    const next_id: WindowID = 0;
+
     allocator: Allocator,
     handle: ?*c.PineWindow,
     id: WindowID,
@@ -222,6 +224,11 @@ pub const Window = struct {
             else => Event{ .none = {} },
         };
     }
+
+    fn nextId() WindowID {
+        defer next_id += 1;
+        return next_id;
+    }
 };
 
 pub const Platform = struct {
@@ -248,9 +255,3 @@ pub const Platform = struct {
         c.pine_platform_poll_events();
     }
 };
-
-const next_id: WindowID = 0;
-fn nextId() WindowID {
-    defer next_id += 1;
-    return next_id;
-}
