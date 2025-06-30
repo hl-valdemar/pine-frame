@@ -25,11 +25,11 @@ pub const GraphicsCapabilities = struct {
     max_vertex_attributes: u32,
 };
 
-pub const Context = struct {
+pub const GraphicsContext = struct {
     backend: *c.PineGraphicsBackend,
     handle: *c.PineGraphicsContext,
 
-    pub fn create(backend_type: Backend) !Context {
+    pub fn create(backend_type: Backend) !GraphicsContext {
         const backend = switch (backend_type) {
             .metal => c.pine_create_metal_backend(),
             // .vulkan => c.pine_create_vulkan_backend(),
@@ -48,17 +48,17 @@ pub const Context = struct {
         const handle = backend.*.create_context.?();
         if (handle == null) return GraphicsError.ContextCreationFailed;
 
-        return Context{
+        return GraphicsContext{
             .backend = backend,
             .handle = handle.?,
         };
     }
 
-    pub fn destroy(self: *Context) void {
+    pub fn destroy(self: *GraphicsContext) void {
         self.backend.destroy_context.?(self.handle);
     }
 
-    pub fn getCapabilities(self: *Context) GraphicsCapabilities {
+    pub fn getCapabilities(self: *GraphicsContext) GraphicsCapabilities {
         var caps: c.PineGraphicsCapabilities = undefined;
         self.backend.get_capabilities.?(self.handle, &caps);
 
@@ -73,11 +73,11 @@ pub const Context = struct {
 };
 
 pub const Swapchain = struct {
-    context: *Context,
+    context: *GraphicsContext,
     handle: *c.PineSwapchain,
     window: *Window,
 
-    pub fn create(context: *Context, window: *Window) !Swapchain {
+    pub fn create(context: *GraphicsContext, window: *Window) !Swapchain {
         const native_handle = c.pine_window_get_native_handle(window.handle);
 
         var width: u32 = undefined;
