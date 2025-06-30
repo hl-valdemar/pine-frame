@@ -12,6 +12,10 @@ const std = @import("std");
 
 pub const log = @import("log.zig");
 
-pub const render = @import("render.zig");
+pub const beginPass = render.beginPass;
+pub const endPass = render.endPass;
+pub const commit = render.commit;
 
 //-- private imports --//
+
+const render = @import("render.zig");

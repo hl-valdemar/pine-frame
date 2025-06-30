@@ -32,14 +32,14 @@ pub fn main() !void {
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        pg.render.beginPass(&window, .{
+        pg.beginPass(&window, .{
             .color = .{ .action = .clear },
         });
 
         // render logic here...
 
-        pg.render.endPass(&window);
-        pg.render.commit(&window);
+        pg.endPass(&window);
+        pg.commit(&window);
 
         // add a small delay to prevent excessive cpu usage
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 FPS

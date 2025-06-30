@@ -11,7 +11,7 @@ const c = switch (builtin.os.tag) {
     else => @compileError("Unsupported platform"),
 };
 
-// Render pass action types
+// render pass action types
 pub const Action = enum(u32) {
     dontcare = 0,
     clear = 1,
