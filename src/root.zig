@@ -16,6 +16,7 @@ const std = @import("std");
 pub const log = @import("internal/log.zig");
 
 pub const Window = platform.Window;
+pub const WindowID = platform.WindowID;
 pub const WindowConfig = platform.WindowConfig;
 pub const Platform = platform.Platform;
 
