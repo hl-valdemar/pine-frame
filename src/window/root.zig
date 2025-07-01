@@ -15,18 +15,18 @@ const std = @import("std");
 
 pub const log = @import("log.zig");
 
-pub const Window = platform.Window;
-pub const WindowID = platform.WindowID;
-pub const WindowDesc = platform.WindowDesc;
-pub const Platform = platform.Platform;
+pub const Window = window.Window;
+pub const WindowID = window.WindowID;
+pub const WindowDesc = window.WindowDesc;
+pub const Platform = window.Platform;
 
 // event types
-pub const Event = platform.Event;
-pub const EventType = platform.EventType;
-pub const KeyCode = platform.KeyCode;
-pub const KeyModifiers = platform.KeyModifiers;
-pub const KeyEvent = platform.KeyEvent;
+pub const Event = window.Event;
+pub const EventType = window.EventType;
+pub const KeyCode = window.KeyCode;
+pub const KeyModifiers = window.KeyModifiers;
+pub const KeyEvent = window.KeyEvent;
 
 //-- private imports --//
 
-const platform = @import("platform.zig");
+const window = @import("window.zig");

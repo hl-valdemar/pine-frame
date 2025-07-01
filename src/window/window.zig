@@ -11,6 +11,31 @@ pub const PineWindowError = error{
     WindowCreationFailed,
 };
 
+pub const Platform = struct {
+    initialized: bool = false,
+
+    pub fn init() !Platform {
+        if (!c.pine_platform_init()) {
+            return PineWindowError.PlatformInitFailed;
+        }
+
+        return Platform{
+            .initialized = true,
+        };
+    }
+
+    pub fn deinit(self: *Platform) void {
+        if (self.initialized) {
+            c.pine_platform_shutdown();
+            self.initialized = false;
+        }
+    }
+
+    pub fn pollEvents(_: *const Platform) void {
+        c.pine_platform_poll_events();
+    }
+};
+
 pub const WindowDesc = struct {
     width: i32 = 800,
     height: i32 = 600,
@@ -232,30 +257,5 @@ pub const Window = struct {
     fn nextId() WindowID {
         defer next_id += 1;
         return next_id;
-    }
-};
-
-pub const Platform = struct {
-    initialized: bool = false,
-
-    pub fn init() !Platform {
-        if (!c.pine_platform_init()) {
-            return PineWindowError.PlatformInitFailed;
-        }
-
-        return Platform{
-            .initialized = true,
-        };
-    }
-
-    pub fn deinit(self: *Platform) void {
-        if (self.initialized) {
-            c.pine_platform_shutdown();
-            self.initialized = false;
-        }
-    }
-
-    pub fn pollEvents(_: *const Platform) void {
-        c.pine_platform_poll_events();
     }
 };
