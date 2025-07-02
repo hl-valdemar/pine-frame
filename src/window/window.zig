@@ -103,6 +103,21 @@ pub const KeyCode = enum(i32) {
     right = 124,
     down = 125,
     up = 126,
+
+    pub fn asUsize(self: KeyCode) usize {
+        return @as(usize, @intCast(@intFromEnum(self)));
+    }
+
+    pub fn maxValue() i32 {
+        const type_info = @typeInfo(KeyCode).@"enum";
+        var max_value = type_info.fields[0].value;
+        for (type_info.fields) |field| {
+            if (field.value > max_value) {
+                max_value = field.value;
+            }
+        }
+        return max_value;
+    }
 };
 
 pub const KeyModifiers = struct {
@@ -137,7 +152,8 @@ pub const Window = struct {
     handle: ?*c.PineWindow,
     id: WindowID,
     destroyed: bool,
-    key_states: std.AutoHashMap(KeyCode, EventType),
+    // key_states: std.AutoHashMap(KeyCode, EventType),
+    key_states: [KeyCode.maxValue()]EventType, // without .unknown
 
     pub fn create(allocator: Allocator, config: WindowDesc) !Window {
         // convert zig string to null-terminated c string
@@ -168,7 +184,7 @@ pub const Window = struct {
             .handle = handle.?,
             .id = nextId(),
             .destroyed = false,
-            .key_states = std.AutoHashMap(KeyCode, EventType).init(allocator),
+            .key_states = [_]EventType{.none} ** KeyCode.maxValue(),
         };
     }
 
@@ -177,7 +193,6 @@ pub const Window = struct {
             c.pine_window_destroy(self.handle.?);
             self.handle = null;
             self.destroyed = true;
-            self.key_states.deinit();
         }
     }
 
@@ -220,8 +235,7 @@ pub const Window = struct {
                     .window_id = self.id,
                 };
 
-                const res = try self.key_states.getOrPut(key_event.key);
-                if (res.found_existing and res.value_ptr.* == .key_down) {
+                if (self.key_states[key_event.key.asUsize()] == .key_down) {
                     key_event.is_repeat = true;
                 }
 
@@ -240,8 +254,7 @@ pub const Window = struct {
                     .window_id = self.id,
                 };
 
-                const res = try self.key_states.getOrPut(key_event.key);
-                if (res.found_existing and res.value_ptr.* == .key_up) {
+                if (self.key_states[key_event.key.asUsize()] == .key_up) {
                     key_event.is_repeat = true;
                 }
 
