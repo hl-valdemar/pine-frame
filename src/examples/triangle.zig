@@ -148,7 +148,7 @@ pub fn main() !void {
         // draw triangle
         render_pass.setPipeline(&pipeline);
         render_pass.setVertexBuffer(0, &vertex_buffer);
-        render_pass.draw(3, 0);
+        render_pass.draw(@intCast(vertex_buffer.len), 0);
 
         // end render pass and present frame
         render_pass.end();

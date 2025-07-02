@@ -222,6 +222,7 @@ pub const BufferDesc = struct {
 pub const Buffer = struct {
     handle: *c.PineBuffer,
     context: *Context,
+    len: usize,
 
     pub fn create(context: *Context, desc: BufferDesc) !Buffer {
         const c_desc = c.PineBufferDesc{
@@ -237,6 +238,7 @@ pub const Buffer = struct {
         return Buffer{
             .handle = handle.?,
             .context = context,
+            .len = c_desc.len,
         };
     }
 
