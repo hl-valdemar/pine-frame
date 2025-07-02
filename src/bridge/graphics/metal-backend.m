@@ -181,6 +181,10 @@ static void metal_destroy_swapchain(PineSwapchain *swapchain) {
     [swapchain->metal_view removeFromSuperview];
     [swapchain->metal_view release];
 
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      swapchain->frames[i].command_buffer = nil;
+    }
+
     free(swapchain);
   }
 }
