@@ -138,10 +138,10 @@ pub fn main() !void {
         var render_pass = try pg.beginPass(&swapchain, .{
             .color = .{
                 .action = .clear,
-                .r = 0.1,
-                .g = 0.1,
-                .b = 0.1,
-                .a = 1.0,
+                .r = 0,
+                .g = 0,
+                .b = 0,
+                .a = 1,
             },
         });
 
