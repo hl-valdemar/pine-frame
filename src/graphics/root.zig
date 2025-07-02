@@ -21,6 +21,7 @@ pub const Pipeline = context.Pipeline;
 pub const Shader = context.Shader;
 pub const VertexAttribute = context.VertexAttribute;
 pub const Buffer = context.Buffer;
+pub const BufferDesc = context.BufferDesc;
 
 // functions
 pub const beginPass = context.beginPass;

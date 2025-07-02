@@ -72,11 +72,9 @@ pub fn main() !void {
 
         // render commands would go here...
 
-        // end render pass
+        // end render pass and present the frame
         render_pass.end();
-
-        // present the frame
-        pg.present(&swapchain);
+        swapchain.present();
 
         frame_count += 1;
         std.time.sleep(16 * std.time.ns_per_ms); // ~60 fps

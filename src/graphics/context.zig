@@ -115,6 +115,12 @@ pub const Swapchain = struct {
         self.context.backend.destroy_swapchain.?(self.handle);
     }
 
+    pub fn present(self: *Swapchain) void {
+        if (self.context.backend.present) |p| {
+            p(self.handle);
+        }
+    }
+
     pub fn resize(self: *Swapchain, width: u32, height: u32) void {
         self.context.backend.resize_swapchain.?(self.handle, width, height);
     }
@@ -194,12 +200,6 @@ pub fn beginPass(swapchain: *Swapchain, pass_action: PassAction) !RenderPass {
         .swapchain = swapchain,
         .handle = handle.?,
     };
-}
-
-pub fn present(swapchain: *Swapchain) void {
-    if (swapchain.context.backend.present) |p| {
-        p(swapchain.handle);
-    }
 }
 
 pub const BufferType = enum(u32) {

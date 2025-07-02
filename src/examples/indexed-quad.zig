@@ -117,7 +117,7 @@ pub fn main() !void {
     const vertex_data = std.mem.sliceAsBytes(&vertices);
     var vertex_buffer = try pg.Buffer.create(&graphics_ctx, .{
         .data = vertex_data,
-        .type = .vertex,
+        .type = .vertex, // default
     });
     defer vertex_buffer.destroy();
 
@@ -126,6 +126,7 @@ pub fn main() !void {
     var index_buffer = try pg.Buffer.create(&graphics_ctx, .{
         .data = index_data,
         .type = .index,
+        .index_type = .U16, // default
     });
     defer index_buffer.destroy();
 
@@ -164,6 +165,6 @@ pub fn main() !void {
 
         // end render pass and present frame
         render_pass.end();
-        pg.present(&swapchain);
+        swapchain.present();
     }
 }

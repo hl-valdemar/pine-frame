@@ -152,7 +152,7 @@ pub fn main() !void {
 
         // end render pass and present frame
         render_pass.end();
-        pg.present(&swapchain);
+        swapchain.present();
     }
 
     std.log.info("shutting down...", .{});
