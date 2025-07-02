@@ -257,12 +257,16 @@ pub const Window = struct {
                     .window_id = self.id,
                 };
 
-                // first check previous key state
-                if (self.key_states[key_event.key.asUsize()] == .key_up) {
-                    key_event.is_repeat = true;
+                // NOTE: this may be foolish if no platforms release events when no key is pressed.
+                // if that's the case, then all key-up events will be essentially unable to "repeat".
+                {
+                    // first check previous key state
+                    if (self.key_states[key_event.key.asUsize()] == .key_up) {
+                        key_event.is_repeat = true;
+                    }
+                    // then set new key state
+                    self.key_states[key_event.key.asUsize()] = .key_up;
                 }
-                // then set new key state
-                self.key_states[key_event.key.asUsize()] = .key_up;
 
                 return Event{ .key_up = key_event };
             },
