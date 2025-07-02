@@ -63,10 +63,16 @@ typedef enum {
   PINE_BUFFER_UNIFORM,
 } PineBufferType;
 
+typedef enum {
+  PINE_INDEX_TYPE_U16 = 0,
+  PINE_INDEX_TYPE_U32 = 1,
+} PineIndexType;
+
 typedef struct {
   const void *data;
-  size_t size;
+  size_t len;
   PineBufferType type;
+  PineIndexType index_type;
 } PineBufferDesc;
 
 // shader types

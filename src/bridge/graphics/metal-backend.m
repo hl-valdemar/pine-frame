@@ -310,8 +310,9 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
 
 struct PineBuffer {
   id<MTLBuffer> buffer;
-  size_t size;
+  size_t len;
   PineBufferType type;
+  PineIndexType index_type;
 };
 
 struct PineShader {
@@ -334,10 +335,11 @@ static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
     return NULL;
 
   buffer->type = desc->type;
-  buffer->size = desc->size;
+  buffer->index_type = desc->index_type;
+  buffer->len = desc->len;
   buffer->buffer =
       [ctx->device newBufferWithBytes:desc->data
-                               length:desc->size
+                               length:desc->len
                               options:MTLResourceStorageModeShared];
 
   if (!buffer->buffer) {
@@ -491,11 +493,21 @@ static void metal_draw_indexed(PineRenderPass *pass, PineBuffer *buffer,
   if (!pass || buffer->type != PINE_BUFFER_INDEX)
     return;
 
+  MTLIndexType index_type;
+  NSUInteger index_size;
+  if (buffer->index_type == PINE_INDEX_TYPE_U16) {
+    index_type = MTLIndexTypeUInt16;
+    index_size = sizeof(uint16_t);
+  } else if (buffer->index_type == PINE_INDEX_TYPE_U32) {
+    index_type = MTLIndexTypeUInt32;
+    index_size = sizeof(uint32_t);
+  }
+
   [pass->encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                            indexCount:buffer->size
-                             indexType:MTLIndexTypeUInt16
+                            indexCount:buffer->len
+                             indexType:index_type
                            indexBuffer:buffer->buffer
-                     indexBufferOffset:first_index * sizeof(uint16_t)
+                     indexBufferOffset:first_index * index_size
                          instanceCount:1
                             baseVertex:vertex_offset
                           baseInstance:0];

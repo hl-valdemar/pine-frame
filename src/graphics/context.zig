@@ -208,18 +208,30 @@ pub const BufferType = enum(u32) {
     uniform = 2,
 };
 
+pub const IndexType = enum(u32) {
+    U16 = 0,
+    U32 = 1,
+};
+
+pub const BufferDesc = struct {
+    data: []const u8,
+    type: BufferType = .vertex,
+    index_type: IndexType = .U16,
+};
+
 pub const Buffer = struct {
     handle: *c.PineBuffer,
     context: *Context,
 
-    pub fn create(context: *Context, data: []const u8, buffer_type: BufferType) !Buffer {
-        const desc = c.PineBufferDesc{
-            .data = data.ptr,
-            .size = data.len,
-            .type = @intFromEnum(buffer_type),
+    pub fn create(context: *Context, desc: BufferDesc) !Buffer {
+        const c_desc = c.PineBufferDesc{
+            .data = desc.data.ptr,
+            .len = desc.data.len,
+            .type = @intFromEnum(desc.type),
+            .index_type = @intFromEnum(desc.index_type),
         };
 
-        const handle = context.backend.create_buffer.?(context.handle, &desc);
+        const handle = context.backend.create_buffer.?(context.handle, &c_desc);
         if (handle == null) return GraphicsError.BufferCreationFailed;
 
         return Buffer{

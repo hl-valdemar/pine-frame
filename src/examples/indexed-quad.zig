@@ -115,12 +115,18 @@ pub fn main() !void {
 
     // create vertex buffer
     const vertex_data = std.mem.sliceAsBytes(&vertices);
-    var vertex_buffer = try pg.Buffer.create(&graphics_ctx, vertex_data, .vertex);
+    var vertex_buffer = try pg.Buffer.create(&graphics_ctx, .{
+        .data = vertex_data,
+        .type = .vertex,
+    });
     defer vertex_buffer.destroy();
 
     // create index buffer
     const index_data = std.mem.sliceAsBytes(&indices);
-    var index_buffer = try pg.Buffer.create(&graphics_ctx, index_data, .index);
+    var index_buffer = try pg.Buffer.create(&graphics_ctx, .{
+        .data = index_data,
+        .type = .index,
+    });
     defer index_buffer.destroy();
 
     // main loop

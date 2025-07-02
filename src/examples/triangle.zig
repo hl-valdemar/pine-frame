@@ -109,7 +109,10 @@ pub fn main() !void {
 
     // create vertex buffer
     const vertex_data = std.mem.sliceAsBytes(&vertices);
-    var vertex_buffer = try pg.Buffer.create(&graphics_ctx, vertex_data, .vertex);
+    var vertex_buffer = try pg.Buffer.create(&graphics_ctx, .{
+        .data = vertex_data,
+        .type = .vertex,
+    });
     defer vertex_buffer.destroy();
 
     std.log.info("starting render loop...", .{});
