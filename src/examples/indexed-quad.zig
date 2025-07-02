@@ -6,7 +6,6 @@ pub const std_options = std.Options{
     .logFn = pw.log.logFn,
 };
 
-// simple vertex structure
 const Vertex = struct {
     position: [2]f32,
     color: [3]f32,
@@ -100,11 +99,18 @@ pub fn main() !void {
 
     std.log.info("creating vertex buffer...", .{});
 
-    // define triangle vertices
+    // define quad vertices (4 vertices instead of 6 for two triangles)
     const vertices = [_]Vertex{
-        .{ .position = .{ 0.0, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // top (red)
-        .{ .position = .{ -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // bottom left (green)
-        .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // bottom right (blue)
+        .{ .position = .{ -0.5, -0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // 0: bottom left
+        .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // 1: bottom right
+        .{ .position = .{ 0.5, 0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // 2: top right
+        .{ .position = .{ -0.5, 0.5 }, .color = .{ 1.0, 1.0, 0.0 } }, // 3: top left
+    };
+
+    // define indices for two triangles forming a quad
+    const indices = [_]u16{
+        0, 1, 2, // first triangle
+        2, 3, 0, // second triangle
     };
 
     // create vertex buffer
@@ -112,7 +118,10 @@ pub fn main() !void {
     var vertex_buffer = try pg.Buffer.create(&graphics_ctx, vertex_data, .vertex);
     defer vertex_buffer.destroy();
 
-    std.log.info("starting render loop...", .{});
+    // create index buffer
+    const index_data = std.mem.sliceAsBytes(&indices);
+    var index_buffer = try pg.Buffer.create(&graphics_ctx, index_data, .index);
+    defer index_buffer.destroy();
 
     // main loop
     while (!try window.shouldClose()) {
@@ -145,12 +154,10 @@ pub fn main() !void {
         // draw triangle
         render_pass.setPipeline(&pipeline);
         render_pass.setVertexBuffer(0, &vertex_buffer);
-        render_pass.draw(3, 0);
+        render_pass.drawIndexed(&index_buffer, 0, 0); // starting at index 0, no vertex offset
 
         // end render pass and present frame
         render_pass.end();
         pg.present(&swapchain);
     }
-
-    std.log.info("shutting down...", .{});
 }

@@ -57,14 +57,16 @@ typedef struct {
 // buffer types
 typedef struct PineBuffer PineBuffer;
 
+typedef enum {
+  PINE_BUFFER_VERTEX,
+  PINE_BUFFER_INDEX,
+  PINE_BUFFER_UNIFORM,
+} PineBufferType;
+
 typedef struct {
   const void *data;
   size_t size;
-  enum {
-    PINE_BUFFER_VERTEX,
-    PINE_BUFFER_INDEX,
-    PINE_BUFFER_UNIFORM,
-  } type;
+  PineBufferType type;
 } PineBufferDesc;
 
 // shader types
@@ -141,6 +143,8 @@ typedef struct {
                             PineBuffer *buffer);
   void (*draw)(PineRenderPass *pass, uint32_t vertex_count,
                uint32_t first_vertex);
+  void (*draw_indexed)(PineRenderPass *pass, PineBuffer *buffer,
+                       uint32_t first_index, int32_t vertex_offset);
 } PineGraphicsBackend;
 
 // backend factory functions (implemented per platform)

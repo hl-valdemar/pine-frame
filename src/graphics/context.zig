@@ -161,6 +161,10 @@ pub const RenderPass = struct {
         self.swapchain.context.backend.draw.?(self.handle, vertex_count, first_vertex);
     }
 
+    pub fn drawIndexed(self: *RenderPass, buffer: *Buffer, first_index: u32, vertex_offset: i32) void {
+        self.swapchain.context.backend.draw_indexed.?(self.handle, buffer.handle, first_index, vertex_offset);
+    }
+
     pub fn end(self: *RenderPass) void {
         self.swapchain.context.backend.end_render_pass.?(self.handle);
     }

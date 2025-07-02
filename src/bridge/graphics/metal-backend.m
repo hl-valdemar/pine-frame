@@ -2,6 +2,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#include <stdint.h>
 
 // metal-specific context
 struct PineGraphicsContext {
@@ -310,6 +311,7 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
 struct PineBuffer {
   id<MTLBuffer> buffer;
   size_t size;
+  PineBufferType type;
 };
 
 struct PineShader {
@@ -331,6 +333,7 @@ static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
   if (!buffer)
     return NULL;
 
+  buffer->type = desc->type;
   buffer->size = desc->size;
   buffer->buffer =
       [ctx->device newBufferWithBytes:desc->data
@@ -451,6 +454,7 @@ static PinePipeline *metal_create_pipeline(PineGraphicsContext *ctx,
 static void metal_destroy_pipeline(PinePipeline *pipeline) {
   if (!pipeline)
     return;
+
   pipeline->state = nil;
   pipeline->vertex_descriptor = nil;
   free(pipeline);
@@ -460,6 +464,7 @@ static void metal_destroy_pipeline(PinePipeline *pipeline) {
 static void metal_set_pipeline(PineRenderPass *pass, PinePipeline *pipeline) {
   if (!pass || !pipeline)
     return;
+
   [pass->encoder setRenderPipelineState:pipeline->state];
 }
 
@@ -467,6 +472,7 @@ static void metal_set_vertex_buffer(PineRenderPass *pass, uint32_t index,
                                     PineBuffer *buffer) {
   if (!pass || !buffer)
     return;
+
   [pass->encoder setVertexBuffer:buffer->buffer offset:0 atIndex:index];
 }
 
@@ -474,9 +480,25 @@ static void metal_draw(PineRenderPass *pass, uint32_t vertex_count,
                        uint32_t first_vertex) {
   if (!pass)
     return;
+
   [pass->encoder drawPrimitives:MTLPrimitiveTypeTriangle
                     vertexStart:first_vertex
                     vertexCount:vertex_count];
+}
+
+static void metal_draw_indexed(PineRenderPass *pass, PineBuffer *buffer,
+                               uint32_t first_index, int32_t vertex_offset) {
+  if (!pass || buffer->type != PINE_BUFFER_INDEX)
+    return;
+
+  [pass->encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                            indexCount:buffer->size
+                             indexType:MTLIndexTypeUInt16
+                           indexBuffer:buffer->buffer
+                     indexBufferOffset:first_index * sizeof(uint16_t)
+                         instanceCount:1
+                            baseVertex:vertex_offset
+                          baseInstance:0];
 }
 
 // backend factory
@@ -500,6 +522,7 @@ PineGraphicsBackend *pine_create_metal_backend(void) {
       .set_pipeline = metal_set_pipeline,
       .set_vertex_buffer = metal_set_vertex_buffer,
       .draw = metal_draw,
+      .draw_indexed = metal_draw_indexed,
   };
 
   return &backend;
