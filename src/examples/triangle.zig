@@ -6,13 +6,13 @@ pub const std_options = std.Options{
     .logFn = pw.log.logFn,
 };
 
-// Simple vertex structure
+// simple vertex structure
 const Vertex = struct {
     position: [2]f32,
     color: [3]f32,
 };
 
-// Metal shader source
+// metal shader source
 const metal_shader_source =
     \\#include <metal_stdlib>
     \\using namespace metal;
@@ -102,9 +102,9 @@ pub fn main() !void {
 
     // define triangle vertices
     const vertices = [_]Vertex{
-        .{ .position = .{ 0.0, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // Top (red)
-        .{ .position = .{ -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // Bottom left (green)
-        .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // Bottom right (blue)
+        .{ .position = .{ 0.0, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // top (red)
+        .{ .position = .{ -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // bottom left (green)
+        .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // bottom right (blue)
     };
 
     // create vertex buffer
