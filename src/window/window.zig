@@ -235,9 +235,34 @@ pub const Window = struct {
                     .window_id = self.id,
                 };
 
+                // first check previous key state
                 if (self.key_states[key_event.key.asUsize()] == .key_down) {
                     key_event.is_repeat = true;
                 }
+                // then set new key state
+                self.key_states[key_event.key.asUsize()] = .key_down;
+
+                return Event{ .key_down = key_event };
+            },
+            c.PINE_EVENT_KEY_UP => {
+                var key_event = KeyEvent{
+                    .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
+                    .mods = KeyModifiers{
+                        .shift = c_event.data.key_event.shift,
+                        .control = c_event.data.key_event.control,
+                        .opt = c_event.data.key_event.opt,
+                        .command = c_event.data.key_event.command,
+                    },
+                    .is_repeat = false,
+                    .window_id = self.id,
+                };
+
+                // first check previous key state
+                if (self.key_states[key_event.key.asUsize()] == .key_up) {
+                    key_event.is_repeat = true;
+                }
+                // then set new key state
+                self.key_states[key_event.key.asUsize()] = .key_down;
 
                 return Event{ .key_down = key_event };
             },
@@ -257,6 +282,21 @@ pub const Window = struct {
                 if (self.key_states[key_event.key.asUsize()] == .key_up) {
                     key_event.is_repeat = true;
                 }
+
+                return Event{ .key_up = key_event };
+            },
+            c.PINE_EVENT_WINDOW_CLOSE => Event{
+                .window_close = .{ .id = self.id },
+            },
+            else => Event{ .none = {} },
+        };
+    }
+
+    fn nextId() WindowID {
+        defer next_id += 1;
+        return next_id;
+    }
+};
 
                 return Event{ .key_up = key_event };
             },
