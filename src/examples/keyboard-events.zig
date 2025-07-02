@@ -63,8 +63,9 @@ pub fn main() !void {
 }
 
 fn logKeyEvent(msg: []const u8, key_event: *const pw.KeyEvent) void {
-    std.log.info("key {s}: {s}{s}{s}{s}{s}", .{
+    std.log.info("key {s}{s}: {s}{s}{s}{s}{s}", .{
         msg,
+        if (key_event.is_repeat) " (repeat)" else "",
         @tagName(key_event.key),
         if (key_event.mods.shift) "+shift" else "",
         if (key_event.mods.control) "+ctrl" else "",
