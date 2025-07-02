@@ -1,13 +1,17 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Window = @import("pine-window").Window;
+
 const c = @import("c-imports").c;
+const Window = @import("pine-window").Window;
 
 pub const GraphicsError = error{
     BackendCreationFailed,
     ContextCreationFailed,
     SwapchainCreationFailed,
     NoSwapchain,
+    BufferCreationFailed,
+    ShaderCreationFailed,
+    PipelineCreationFailed,
 };
 
 pub const Backend = enum {
@@ -32,12 +36,14 @@ pub const Context = struct {
     pub fn create(backend_type: Backend) !Context {
         const backend = switch (backend_type) {
             .metal => c.pine_create_metal_backend(),
+            // TODO:
             // .vulkan => c.pine_create_vulkan_backend(),
             // .d3d12 => c.pine_create_d3d12_backend(),
             .auto => switch (builtin.os.tag) {
                 .macos => c.pine_create_metal_backend(),
-                .windows => c.pine_create_d3d12_backend(),
-                .linux => c.pine_create_vulkan_backend(),
+                // TODO:
+                // .windows => c.pine_create_d3d12_backend(),
+                // .linux => c.pine_create_vulkan_backend(),
                 else => return GraphicsError.BackendCreationFailed,
             },
             else => @panic("Unsupported platform"),
@@ -94,7 +100,7 @@ pub const Swapchain = struct {
         const handle = context.backend.create_swapchain.?(context.handle, &config);
         if (handle == null) return GraphicsError.SwapchainCreationFailed;
 
-        // Associate swapchain with window
+        // associate swapchain with window
         c.pine_window_set_swapchain(window.handle, handle);
 
         return Swapchain{
@@ -114,7 +120,6 @@ pub const Swapchain = struct {
     }
 };
 
-// Keep the same PassAction types
 pub const Action = enum(u32) {
     dontcare = 0,
     clear = 1,
@@ -144,12 +149,24 @@ pub const RenderPass = struct {
     swapchain: *Swapchain,
     handle: *c.PineRenderPass,
 
+    pub fn setPipeline(self: *RenderPass, pipeline: *Pipeline) void {
+        self.swapchain.context.backend.set_pipeline.?(self.handle, pipeline.handle);
+    }
+
+    pub fn setVertexBuffer(self: *RenderPass, index: u32, buffer: *Buffer) void {
+        self.swapchain.context.backend.set_vertex_buffer.?(self.handle, index, buffer.handle);
+    }
+
+    pub fn draw(self: *RenderPass, vertex_count: u32, first_vertex: u32) void {
+        self.swapchain.context.backend.draw.?(self.handle, vertex_count, first_vertex);
+    }
+
     pub fn end(self: *RenderPass) void {
         self.swapchain.context.backend.end_render_pass.?(self.handle);
     }
 };
 
-// New API that works with swapchains instead of windows
+// API that works with swapchains instead of windows
 pub fn beginPass(swapchain: *Swapchain, pass_action: PassAction) !RenderPass {
     const c_pass_action = c.PinePassAction{
         .color = c.PineColorAttachment{
@@ -180,3 +197,122 @@ pub fn present(swapchain: *Swapchain) void {
         p(swapchain.handle);
     }
 }
+
+pub const BufferType = enum(u32) {
+    vertex = 0,
+    index = 1,
+    uniform = 2,
+};
+
+pub const Buffer = struct {
+    handle: *c.PineBuffer,
+    context: *Context,
+
+    pub fn create(context: *Context, data: []const u8, buffer_type: BufferType) !Buffer {
+        const desc = c.PineBufferDesc{
+            .data = data.ptr,
+            .size = data.len,
+            .type = @intFromEnum(buffer_type),
+        };
+
+        const handle = context.backend.create_buffer.?(context.handle, &desc);
+        if (handle == null) return GraphicsError.BufferCreationFailed;
+
+        return Buffer{
+            .handle = handle.?,
+            .context = context,
+        };
+    }
+
+    pub fn destroy(self: *Buffer) void {
+        self.context.backend.destroy_buffer.?(self.handle);
+    }
+};
+
+pub const ShaderType = enum(u32) {
+    vertex = 0,
+    fragment = 1,
+};
+
+pub const Shader = struct {
+    handle: *c.PineShader,
+    context: *Context,
+
+    pub fn create(context: *Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
+        const desc = c.PineShaderDesc{
+            .source = source.ptr,
+            .type = @intFromEnum(shader_type),
+        };
+
+        const handle = context.backend.create_shader.?(context.handle, &desc);
+        if (handle == null) return GraphicsError.ShaderCreationFailed;
+
+        return Shader{
+            .handle = handle.?,
+            .context = context,
+        };
+    }
+
+    pub fn destroy(self: *Shader) void {
+        self.context.backend.destroy_shader.?(self.handle);
+    }
+};
+
+pub const VertexFormat = enum(u32) {
+    float2 = 0,
+    float3 = 1,
+    float4 = 2,
+};
+
+pub const VertexAttribute = struct {
+    format: VertexFormat,
+    offset: usize,
+    buffer_index: u32 = 0,
+};
+
+pub const Pipeline = struct {
+    handle: *c.PinePipeline,
+    context: *Context,
+
+    pub fn create(
+        context: *Context,
+        vertex_shader: *Shader,
+        fragment_shader: *Shader,
+        attributes: []const VertexAttribute,
+        vertex_stride: usize,
+    ) !Pipeline {
+        const allocator = std.heap.c_allocator;
+
+        // convert attributes to c format
+        var c_attrs = try allocator.alloc(c.PineVertexAttribute, attributes.len);
+        defer allocator.free(c_attrs);
+
+        for (attributes, 0..) |attr, i| {
+            c_attrs[i] = .{
+                .format = @intFromEnum(attr.format),
+                .offset = attr.offset,
+                .buffer_index = attr.buffer_index,
+            };
+        }
+
+        const desc = c.PinePipelineDesc{
+            .vertex_shader = vertex_shader.handle,
+            .fragment_shader = fragment_shader.handle,
+            .attributes = c_attrs.ptr,
+            .attribute_count = attributes.len,
+            .vertex_stride = vertex_stride,
+        };
+
+        const handle = context.backend.create_pipeline.?(context.handle, &desc);
+        if (handle == null) return GraphicsError.PipelineCreationFailed;
+
+        return Pipeline{
+            .handle = handle.?,
+            .context = context,
+        };
+    }
+
+    pub fn destroy(self: *Pipeline) void {
+        self.context.backend.destroy_pipeline.?(self.handle);
+    }
+};

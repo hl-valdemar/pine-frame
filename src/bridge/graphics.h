@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +54,51 @@ typedef struct {
   PineDepthStencilAttachment depth_stencil;
 } PinePassAction;
 
+// buffer types
+typedef struct PineBuffer PineBuffer;
+
+typedef struct {
+  const void *data;
+  size_t size;
+  enum {
+    PINE_BUFFER_VERTEX,
+    PINE_BUFFER_INDEX,
+    PINE_BUFFER_UNIFORM,
+  } type;
+} PineBufferDesc;
+
+// shader types
+typedef struct PineShader PineShader;
+
+typedef struct {
+  const char *source;
+  enum {
+    PINE_SHADER_VERTEX,
+    PINE_SHADER_FRAGMENT,
+  } type;
+} PineShaderDesc;
+
+// pipeline types
+typedef struct PinePipeline PinePipeline;
+
+typedef struct {
+  enum {
+    PINE_VERTEX_FORMAT_FLOAT2,
+    PINE_VERTEX_FORMAT_FLOAT3,
+    PINE_VERTEX_FORMAT_FLOAT4,
+  } format;
+  size_t offset;
+  uint32_t buffer_index;
+} PineVertexAttribute;
+
+typedef struct {
+  PineShader *vertex_shader;
+  PineShader *fragment_shader;
+  PineVertexAttribute *attributes;
+  size_t attribute_count;
+  size_t vertex_stride;
+} PinePipelineDesc;
+
 // graphics backend interface (vtable pattern)
 typedef struct {
   // context management
@@ -75,6 +121,26 @@ typedef struct {
   // capabilities query
   void (*get_capabilities)(PineGraphicsContext *ctx,
                            PineGraphicsCapabilities *caps);
+
+  // resource creation
+  PineBuffer *(*create_buffer)(PineGraphicsContext *ctx,
+                               const PineBufferDesc *desc);
+  void (*destroy_buffer)(PineBuffer *buffer);
+
+  PineShader *(*create_shader)(PineGraphicsContext *ctx,
+                               const PineShaderDesc *desc);
+  void (*destroy_shader)(PineShader *shader);
+
+  PinePipeline *(*create_pipeline)(PineGraphicsContext *ctx,
+                                   const PinePipelineDesc *desc);
+  void (*destroy_pipeline)(PinePipeline *pipeline);
+
+  // drawing
+  void (*set_pipeline)(PineRenderPass *pass, PinePipeline *pipeline);
+  void (*set_vertex_buffer)(PineRenderPass *pass, uint32_t index,
+                            PineBuffer *buffer);
+  void (*draw)(PineRenderPass *pass, uint32_t vertex_count,
+               uint32_t first_vertex);
 } PineGraphicsBackend;
 
 // backend factory functions (implemented per platform)

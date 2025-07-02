@@ -17,13 +17,15 @@ pub const log = @import("log.zig");
 pub const GraphicsContext = context.Context;
 pub const Swapchain = context.Swapchain;
 pub const RenderPass = context.RenderPass;
-// pub const beginFrame = context.beginFrame;
-// pub const endFrame = context.endFrame;
+pub const Pipeline = context.Pipeline;
+pub const Shader = context.Shader;
+pub const VertexAttribute = context.VertexAttribute;
+pub const Buffer = context.Buffer;
+
+// functions
 pub const beginPass = context.beginPass;
-pub const endPass = context.endPass;
 pub const present = context.present;
 
 //-- private imports --//
 
-// const render = @import("render.zig");
 const context = @import("context.zig");

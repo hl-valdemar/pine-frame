@@ -307,6 +307,178 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
   caps->max_vertex_attributes = 31;
 }
 
+struct PineBuffer {
+  id<MTLBuffer> buffer;
+  size_t size;
+};
+
+struct PineShader {
+  id<MTLFunction> function;
+};
+
+struct PinePipeline {
+  id<MTLRenderPipelineState> state;
+  MTLVertexDescriptor *vertex_descriptor;
+};
+
+// buffer implementation
+static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
+                                       const PineBufferDesc *desc) {
+  if (!ctx || !desc || !desc->data)
+    return NULL;
+
+  PineBuffer *buffer = malloc(sizeof(PineBuffer));
+  if (!buffer)
+    return NULL;
+
+  buffer->size = desc->size;
+  buffer->buffer =
+      [ctx->device newBufferWithBytes:desc->data
+                               length:desc->size
+                              options:MTLResourceStorageModeShared];
+
+  if (!buffer->buffer) {
+    free(buffer);
+    return NULL;
+  }
+
+  return buffer;
+}
+
+static void metal_destroy_buffer(PineBuffer *buffer) {
+  if (!buffer)
+    return;
+  buffer->buffer = nil;
+  free(buffer);
+}
+
+// shader implementation
+static PineShader *metal_create_shader(PineGraphicsContext *ctx,
+                                       const PineShaderDesc *desc) {
+  if (!ctx || !desc || !desc->source)
+    return NULL;
+
+  NSError *error = nil;
+  NSString *source = [NSString stringWithUTF8String:desc->source];
+
+  id<MTLLibrary> library = [ctx->device newLibraryWithSource:source
+                                                     options:nil
+                                                       error:&error];
+
+  if (!library) {
+    NSLog(@"Failed to compile shader: %@", error);
+    return NULL;
+  }
+
+  // get the main function (we'll use standard names)
+  NSString *functionName =
+      (desc->type == PINE_SHADER_VERTEX) ? @"vertex_main" : @"fragment_main";
+  id<MTLFunction> function = [library newFunctionWithName:functionName];
+
+  if (!function) {
+    NSLog(@"Failed to find function %@ in shader", functionName);
+    return NULL;
+  }
+
+  PineShader *shader = malloc(sizeof(PineShader));
+  shader->function = function;
+
+  return shader;
+}
+
+static void metal_destroy_shader(PineShader *shader) {
+  if (!shader)
+    return;
+  shader->function = nil;
+  free(shader);
+}
+
+// pipeline implementation
+static PinePipeline *metal_create_pipeline(PineGraphicsContext *ctx,
+                                           const PinePipelineDesc *desc) {
+  if (!ctx || !desc)
+    return NULL;
+
+  MTLRenderPipelineDescriptor *pipeline_desc =
+      [[MTLRenderPipelineDescriptor alloc] init];
+  pipeline_desc.vertexFunction = desc->vertex_shader->function;
+  pipeline_desc.fragmentFunction = desc->fragment_shader->function;
+  pipeline_desc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+
+  // setup vertex descriptor
+  MTLVertexDescriptor *vertex_desc = [[MTLVertexDescriptor alloc] init];
+
+  for (size_t i = 0; i < desc->attribute_count; i++) {
+    MTLVertexAttributeDescriptor *attr = vertex_desc.attributes[i];
+    attr.offset = desc->attributes[i].offset;
+    attr.bufferIndex = desc->attributes[i].buffer_index;
+
+    switch (desc->attributes[i].format) {
+    case PINE_VERTEX_FORMAT_FLOAT2:
+      attr.format = MTLVertexFormatFloat2;
+      break;
+    case PINE_VERTEX_FORMAT_FLOAT3:
+      attr.format = MTLVertexFormatFloat3;
+      break;
+    case PINE_VERTEX_FORMAT_FLOAT4:
+      attr.format = MTLVertexFormatFloat4;
+      break;
+    }
+  }
+
+  vertex_desc.layouts[0].stride = desc->vertex_stride;
+  vertex_desc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+
+  pipeline_desc.vertexDescriptor = vertex_desc;
+
+  NSError *error = nil;
+  id<MTLRenderPipelineState> state =
+      [ctx->device newRenderPipelineStateWithDescriptor:pipeline_desc
+                                                  error:&error];
+
+  if (!state) {
+    NSLog(@"Failed to create pipeline state: %@", error);
+    return NULL;
+  }
+
+  PinePipeline *pipeline = malloc(sizeof(PinePipeline));
+  pipeline->state = state;
+  pipeline->vertex_descriptor = vertex_desc;
+
+  return pipeline;
+}
+
+static void metal_destroy_pipeline(PinePipeline *pipeline) {
+  if (!pipeline)
+    return;
+  pipeline->state = nil;
+  pipeline->vertex_descriptor = nil;
+  free(pipeline);
+}
+
+// drawing functions
+static void metal_set_pipeline(PineRenderPass *pass, PinePipeline *pipeline) {
+  if (!pass || !pipeline)
+    return;
+  [pass->encoder setRenderPipelineState:pipeline->state];
+}
+
+static void metal_set_vertex_buffer(PineRenderPass *pass, uint32_t index,
+                                    PineBuffer *buffer) {
+  if (!pass || !buffer)
+    return;
+  [pass->encoder setVertexBuffer:buffer->buffer offset:0 atIndex:index];
+}
+
+static void metal_draw(PineRenderPass *pass, uint32_t vertex_count,
+                       uint32_t first_vertex) {
+  if (!pass)
+    return;
+  [pass->encoder drawPrimitives:MTLPrimitiveTypeTriangle
+                    vertexStart:first_vertex
+                    vertexCount:vertex_count];
+}
+
 // backend factory
 PineGraphicsBackend *pine_create_metal_backend(void) {
   static PineGraphicsBackend backend = {
@@ -319,6 +491,15 @@ PineGraphicsBackend *pine_create_metal_backend(void) {
       .end_render_pass = metal_end_render_pass,
       .present = metal_present,
       .get_capabilities = metal_get_capabilities,
+      .create_buffer = metal_create_buffer,
+      .destroy_buffer = metal_destroy_buffer,
+      .create_shader = metal_create_shader,
+      .destroy_shader = metal_destroy_shader,
+      .create_pipeline = metal_create_pipeline,
+      .destroy_pipeline = metal_destroy_pipeline,
+      .set_pipeline = metal_set_pipeline,
+      .set_vertex_buffer = metal_set_vertex_buffer,
+      .draw = metal_draw,
   };
 
   return &backend;
