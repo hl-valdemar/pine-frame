@@ -42,19 +42,19 @@ const metal_shader_source =
 pub fn main() !void {
     std.log.info("initializing pine window platform...", .{});
 
-    // Initialize platform
+    // initialize platform
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
     std.log.info("creating graphics context...", .{});
 
-    // Create graphics context
+    // create graphics context
     var graphics_ctx = try pg.GraphicsContext.create(.auto);
     defer graphics_ctx.destroy();
 
     std.log.info("creating window...", .{});
 
-    // Create window
+    // create window
     var window = try pw.Window.create(std.heap.page_allocator, .{
         .width = 800,
         .height = 600,
@@ -67,13 +67,13 @@ pub fn main() !void {
 
     std.log.info("creating swapchain...", .{});
 
-    // Create swapchain
+    // create swapchain
     var swapchain = try pg.Swapchain.create(&graphics_ctx, &window);
     defer swapchain.destroy();
 
     std.log.info("creating shaders...", .{});
 
-    // Create shaders
+    // create shaders
     var vertex_shader = try pg.Shader.create(&graphics_ctx, metal_shader_source, .vertex);
     defer vertex_shader.destroy();
 
@@ -82,13 +82,13 @@ pub fn main() !void {
 
     std.log.info("creating pipeline...", .{});
 
-    // Define vertex attributes
+    // define vertex attributes
     const attributes = [_]pg.VertexAttribute{
         .{ .format = .float2, .offset = @offsetOf(Vertex, "position") },
         .{ .format = .float3, .offset = @offsetOf(Vertex, "color") },
     };
 
-    // Create pipeline
+    // create pipeline
     var pipeline = try pg.Pipeline.create(
         &graphics_ctx,
         &vertex_shader,
@@ -100,25 +100,25 @@ pub fn main() !void {
 
     std.log.info("creating vertex buffer...", .{});
 
-    // Define triangle vertices
+    // define triangle vertices
     const vertices = [_]Vertex{
         .{ .position = .{ 0.0, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // Top (red)
         .{ .position = .{ -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // Bottom left (green)
         .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // Bottom right (blue)
     };
 
-    // Create vertex buffer
+    // create vertex buffer
     const vertex_data = std.mem.sliceAsBytes(&vertices);
     var vertex_buffer = try pg.Buffer.create(&graphics_ctx, vertex_data, .vertex);
     defer vertex_buffer.destroy();
 
     std.log.info("starting render loop...", .{});
 
-    // Main loop
+    // main loop
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        // Handle events
+        // handle events
         while (try window.pollEvent()) |event| {
             switch (event) {
                 .key_down => |key_event| {
@@ -131,7 +131,7 @@ pub fn main() !void {
             }
         }
 
-        // Begin render pass
+        // begin render pass
         var render_pass = try pg.beginPass(&swapchain, .{
             .color = .{
                 .action = .clear,
@@ -142,15 +142,15 @@ pub fn main() !void {
             },
         });
 
-        // Draw triangle
+        // draw triangle
         render_pass.setPipeline(&pipeline);
         render_pass.setVertexBuffer(0, &vertex_buffer);
         render_pass.draw(3, 0);
 
-        // End render pass
+        // end render pass
         render_pass.end();
 
-        // Present frame
+        // present frame
         pg.present(&swapchain);
     }
 

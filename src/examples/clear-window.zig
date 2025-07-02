@@ -79,7 +79,7 @@ pub fn main() !void {
         pg.present(&swapchain);
 
         frame_count += 1;
-        // std.time.sleep(16 * std.time.ns_per_ms); // ~60 fps
+        std.time.sleep(16 * std.time.ns_per_ms); // ~60 fps
     }
 
     std.log.info("window closed, exiting...", .{});
