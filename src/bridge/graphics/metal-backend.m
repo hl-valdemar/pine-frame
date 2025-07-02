@@ -2,13 +2,21 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
-#include <stdint.h>
+#import <stdint.h>
+
+#define MAX_FRAMES_IN_FLIGHT 2 // or 3 for triple buffering
 
 // metal-specific context
 struct PineGraphicsContext {
   id<MTLDevice> device;
   id<MTLCommandQueue> command_queue;
 };
+
+// per-frame resources
+typedef struct {
+  id<MTLCommandBuffer> command_buffer;
+  dispatch_semaphore_t semaphore;
+} FrameResources;
 
 // metal-specific swapchain
 struct PineSwapchain {
@@ -19,6 +27,12 @@ struct PineSwapchain {
   id<MTLCommandBuffer> current_command_buffer;
   id<MTLRenderCommandEncoder> current_encoder; // track current encoder
   MTLRenderPassDescriptor *render_pass_descriptor;
+
+  // per-frame resources
+  FrameResources frames[MAX_FRAMES_IN_FLIGHT];
+
+  uint32_t current_frame_index;
+  dispatch_semaphore_t image_available_semaphore;
 };
 
 // metal-specific render pass
@@ -136,6 +150,15 @@ static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
     swapchain->metal_layer.drawableSize =
         CGSizeMake(viewSize.width * scale, viewSize.height * scale);
 
+    swapchain->current_frame_index = 0;
+    swapchain->image_available_semaphore =
+        dispatch_semaphore_create(MAX_FRAMES_IN_FLIGHT);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      swapchain->frames[i].semaphore = dispatch_semaphore_create(1);
+      swapchain->frames[i].command_buffer = nil;
+    }
+
     return swapchain;
   }
 }
@@ -174,30 +197,15 @@ static void metal_resize_swapchain(PineSwapchain *swapchain, uint32_t width,
   }
 }
 
-// // frame management
-// static NSAutoreleasePool *g_frame_pool = nil;
-//
-// static void metal_begin_frame(void) {
-//   if (g_frame_pool) {
-//     [g_frame_pool release];
-//   }
-//   g_frame_pool = [[NSAutoreleasePool alloc] init];
-// }
-//
-// static void metal_end_frame(void) {
-//   if (g_frame_pool) {
-//     [g_frame_pool release];
-//     g_frame_pool = nil;
-//   }
-// }
-
 static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
                                                const PinePassAction *action) {
-  // // allocate frame pool
-  // metal_begin_frame();
-
   if (!swapchain)
     return NULL;
+
+  // wait for previous frame using this slot to complete
+  dispatch_semaphore_wait(
+      swapchain->frames[swapchain->current_frame_index].semaphore,
+      DISPATCH_TIME_FOREVER);
 
   // end any previous encoder that wasn't properly ended
   if (swapchain->current_encoder) {
@@ -206,12 +214,12 @@ static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
     swapchain->current_encoder = nil;
   }
 
-  // get drawable
+  // get drawable (this might block if none available)
   id<CAMetalDrawable> drawable = [swapchain->metal_layer nextDrawable];
   if (!drawable)
     return NULL;
 
-  // create command buffer
+  // create command buffer for this frame
   id<MTLCommandBuffer> cmd_buffer =
       [swapchain->context->command_queue commandBuffer];
   if (!cmd_buffer)
@@ -283,16 +291,27 @@ static void metal_present(PineSwapchain *swapchain) {
     swapchain->current_encoder = nil;
   }
 
+  // get current frame resources
+  FrameResources *frame = &swapchain->frames[swapchain->current_frame_index];
+
+  // add completion handler instead of blocking wait
+  __block dispatch_semaphore_t frameSemaphore = frame->semaphore;
+  [swapchain->current_command_buffer
+      addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+        dispatch_semaphore_signal(frameSemaphore);
+      }];
+
   [swapchain->current_command_buffer
       presentDrawable:swapchain->current_drawable];
   [swapchain->current_command_buffer commit];
-  [swapchain->current_command_buffer waitUntilCompleted];
 
+  // move to next frame
+  swapchain->current_frame_index =
+      (swapchain->current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT;
+
+  // clear references
   swapchain->current_command_buffer = nil;
   swapchain->current_drawable = nil;
-
-  // // deallocate frame pool
-  // metal_end_frame();
 }
 
 static void metal_get_capabilities(PineGraphicsContext *ctx,
