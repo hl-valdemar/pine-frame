@@ -75,13 +75,13 @@ pub fn build(b: *std.Build) !void {
 
         // window module only needs window-related frameworks
         const macos_window_lib = b.addStaticLibrary(.{
-            .name = "pine-macos-window",
+            .name = "pine-cocoa-window",
             .target = target,
             .optimize = optimize,
         });
 
         macos_window_lib.addCSourceFile(.{
-            .file = b.path("src/bridge/window/macos.m"),
+            .file = b.path("src/bridge/window/cocoa-backend.m"),
             .language = .objective_c,
             .flags = &[_][]const u8{"-fmodules"},
         });

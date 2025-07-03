@@ -1,4 +1,4 @@
-#import "../window.h"
+#import "../window-backend.h"
 #import <Cocoa/Cocoa.h>
 
 // simple event queue implementation
@@ -111,45 +111,20 @@ static bool event_queue_pop(EventQueue *queue, PineEvent *event) {
   return true;
 }
 
-// batch processing for better performance
-static size_t event_queue_pop_batch(EventQueue *queue, PineEvent *events,
-                                    size_t max_events) {
-  size_t popped = 0;
-  while (popped < max_events && queue->count > 0) {
-    events[popped] = queue->events[queue->head];
-    queue->head = (queue->head + 1) % DEFAULT_MAX_EVENTS;
-    queue->count--;
-    popped++;
-  }
-  return popped;
-}
-
-static void event_queue_get_stats(const EventQueue *queue,
-                                  size_t *current_count,
-                                  size_t *high_water_mark,
-                                  size_t *events_dropped) {
-  if (current_count)
-    *current_count = queue->count;
-  if (high_water_mark)
-    *high_water_mark = queue->high_water_mark;
-  if (events_dropped)
-    *events_dropped = queue->events_dropped;
-}
-
 // forward declaration for the window delegate
-@interface WindowDelegate : NSObject <NSWindowDelegate>
+@interface CocoaWindowDelegate : NSObject <NSWindowDelegate>
 @property(nonatomic, assign) struct PineWindow *pineWindow;
 @end
 
 // custom NSWindow subclass to capture key events
-@interface PineNSWindow : NSWindow
+@interface CocoaNSWindow : NSWindow
 @property(nonatomic, assign) struct PineWindow *pineWindow;
 @end
 
 // internal window structure
 struct PineWindow {
-  PineNSWindow *ns_window;
-  WindowDelegate *delegate;
+  CocoaNSWindow *ns_window;
+  CocoaWindowDelegate *delegate;
   bool should_close;
   EventQueue event_queue;
 
@@ -161,8 +136,8 @@ struct PineWindow {
 static NSApplication *g_app = nil;
 static bool g_platform_initialized = false;
 
-// PineNSWindow implementation
-@implementation PineNSWindow
+// CocoaNSWindow implementation
+@implementation CocoaNSWindow
 
 - (void)keyDown:(NSEvent *)event {
   if (self.pineWindow) {
@@ -202,8 +177,8 @@ static bool g_platform_initialized = false;
 
 @end
 
-// WindowDelegate implementation
-@implementation WindowDelegate
+// CocoaWindowDelegate implementation
+@implementation CocoaWindowDelegate
 
 - (BOOL)windowShouldClose:(NSWindow *)sender {
   if (self.pineWindow) {
@@ -224,7 +199,8 @@ static bool g_platform_initialized = false;
 
 @end
 
-bool pine_platform_init(void) {
+// implementation functions
+static bool cocoa_platform_init(void) {
   if (g_platform_initialized) {
     return true;
   }
@@ -257,7 +233,7 @@ bool pine_platform_init(void) {
   }
 }
 
-void pine_platform_shutdown(void) {
+static void cocoa_platform_shutdown(void) {
   if (!g_platform_initialized) {
     return;
   }
@@ -266,7 +242,7 @@ void pine_platform_shutdown(void) {
   g_platform_initialized = false;
 }
 
-PineWindow *pine_window_create(const PineWindowDesc *config) {
+static PineWindow *cocoa_window_create(const PineWindowDesc *config) {
   if (!g_platform_initialized) {
     return NULL;
   }
@@ -295,15 +271,15 @@ PineWindow *pine_window_create(const PineWindowDesc *config) {
 
     // create the custom NSWindow
     window->ns_window =
-        [[PineNSWindow alloc] initWithContentRect:windowRect
-                                        styleMask:styleMask
-                                          backing:NSBackingStoreBuffered
-                                            defer:NO];
+        [[CocoaNSWindow alloc] initWithContentRect:windowRect
+                                         styleMask:styleMask
+                                           backing:NSBackingStoreBuffered
+                                             defer:NO];
 
     // set the back-reference
     window->ns_window.pineWindow = window;
 
-    // IMPORTANT: prevent automatic release when window is closed
+    // NOTE: prevent automatic release when window is closed. this is important.
     [window->ns_window setReleasedWhenClosed:NO];
 
     // set window properties
@@ -317,15 +293,8 @@ PineWindow *pine_window_create(const PineWindowDesc *config) {
       [window->ns_window center];
     }
 
-    // // create a simple NSView as content view (graphics backend will
-    // replace
-    // // this)
-    // NSView *contentView = [[NSView alloc] initWithFrame:windowRect];
-    // [window->ns_window setContentView:contentView];
-    // [contentView release];
-
     // create and set up the delegate
-    window->delegate = [[WindowDelegate alloc] init];
+    window->delegate = [[CocoaWindowDelegate alloc] init];
     window->delegate.pineWindow = window;
     [window->ns_window setDelegate:window->delegate];
 
@@ -335,14 +304,14 @@ PineWindow *pine_window_create(const PineWindowDesc *config) {
     // show window if requested
     if (config->visible) {
       [window->ns_window makeKeyAndOrderFront:nil];
-      [g_app activateIgnoringOtherApps:YES];
+      // [g_app activateIgnoringOtherApps:YES]; // probably not necessary(?)
     }
 
     return window;
   }
 }
 
-void pine_window_destroy(PineWindow *window) {
+static void cocoa_window_destroy(PineWindow *window) {
   if (!window) {
     return;
   }
@@ -369,7 +338,7 @@ void pine_window_destroy(PineWindow *window) {
   }
 }
 
-void pine_window_show(PineWindow *window) {
+static void cocoa_window_show(PineWindow *window) {
   if (!window || !window->ns_window) {
     return;
   }
@@ -379,7 +348,7 @@ void pine_window_show(PineWindow *window) {
   }
 }
 
-void pine_window_hide(PineWindow *window) {
+static void cocoa_window_hide(PineWindow *window) {
   if (!window || !window->ns_window) {
     return;
   }
@@ -389,7 +358,7 @@ void pine_window_hide(PineWindow *window) {
   }
 }
 
-bool pine_window_should_close(PineWindow *window) {
+static bool cocoa_window_should_close(PineWindow *window) {
   if (!window) {
     return false;
   }
@@ -397,7 +366,7 @@ bool pine_window_should_close(PineWindow *window) {
   return window->should_close;
 }
 
-void pine_window_request_close(PineWindow *window) {
+static void cocoa_window_request_close(PineWindow *window) {
   if (!window) {
     return;
   }
@@ -410,7 +379,7 @@ void pine_window_request_close(PineWindow *window) {
   event_queue_push(&window->event_queue, &event);
 }
 
-void *pine_window_get_native_handle(PineWindow *window) {
+static void *cocoa_window_get_native_handle(PineWindow *window) {
   if (!window) {
     return NULL;
   }
@@ -418,8 +387,8 @@ void *pine_window_get_native_handle(PineWindow *window) {
   return (__bridge void *)window->ns_window;
 }
 
-void pine_window_get_size(PineWindow *window, uint32_t *width,
-                          uint32_t *height) {
+static void cocoa_window_get_size(PineWindow *window, uint32_t *width,
+                                  uint32_t *height) {
   if (!window || !window->ns_window) {
     return;
   }
@@ -433,7 +402,8 @@ void pine_window_get_size(PineWindow *window, uint32_t *width,
   }
 }
 
-void pine_window_set_swapchain(PineWindow *window, PineSwapchain *swapchain) {
+static void cocoa_window_set_swapchain(PineWindow *window,
+                                       PineSwapchain *swapchain) {
   if (!window) {
     return;
   }
@@ -441,7 +411,7 @@ void pine_window_set_swapchain(PineWindow *window, PineSwapchain *swapchain) {
   window->swapchain = swapchain;
 }
 
-PineSwapchain *pine_window_get_swapchain(PineWindow *window) {
+static PineSwapchain *cocoa_window_get_swapchain(PineWindow *window) {
   if (!window) {
     return NULL;
   }
@@ -449,7 +419,7 @@ PineSwapchain *pine_window_get_swapchain(PineWindow *window) {
   return window->swapchain;
 }
 
-bool pine_window_poll_event(PineWindow *window, PineEvent *event) {
+static bool cocoa_window_poll_event(PineWindow *window, PineEvent *event) {
   if (!window || !event) {
     return false;
   }
@@ -457,7 +427,7 @@ bool pine_window_poll_event(PineWindow *window, PineEvent *event) {
   return event_queue_pop(&window->event_queue, event);
 }
 
-void pine_platform_poll_events(void) {
+static void cocoa_platform_poll_events(void) {
   if (!g_platform_initialized) {
     return;
   }
@@ -471,4 +441,26 @@ void pine_platform_poll_events(void) {
       [g_app sendEvent:event];
     }
   }
+}
+
+// backend factory
+PineWindowBackend *pine_create_cocoa_backend(void) {
+  static PineWindowBackend backend = {
+      .platform_init = cocoa_platform_init,
+      .platform_shutdown = cocoa_platform_shutdown,
+      .platform_poll_events = cocoa_platform_poll_events,
+      .window_create = cocoa_window_create,
+      .window_destroy = cocoa_window_destroy,
+      .window_show = cocoa_window_show,
+      .window_hide = cocoa_window_hide,
+      .window_should_close = cocoa_window_should_close,
+      .window_request_close = cocoa_window_request_close,
+      .window_get_native_handle = cocoa_window_get_native_handle,
+      .window_get_size = cocoa_window_get_size,
+      .window_poll_event = cocoa_window_poll_event,
+      .window_set_swapchain = cocoa_window_set_swapchain,
+      .window_get_swapchain = cocoa_window_get_swapchain,
+  };
+
+  return &backend;
 }

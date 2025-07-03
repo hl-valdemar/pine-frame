@@ -12,6 +12,7 @@ pub const GraphicsError = error{
     BufferCreationFailed,
     ShaderCreationFailed,
     PipelineCreationFailed,
+    BackendNotImplemented,
 };
 
 pub const Backend = enum {
@@ -44,9 +45,9 @@ pub const Context = struct {
                 // TODO:
                 // .windows => c.pine_create_d3d12_backend(),
                 // .linux => c.pine_create_vulkan_backend(),
-                else => return GraphicsError.BackendCreationFailed,
+                else => return GraphicsError.BackendNotImplemented,
             },
-            else => @panic("Unsupported platform"),
+            else => return GraphicsError.BackendNotImplemented,
         };
 
         if (backend == null) return GraphicsError.BackendCreationFailed;
@@ -84,11 +85,12 @@ pub const Swapchain = struct {
     window: *Window,
 
     pub fn create(context: *Context, window: *Window) !Swapchain {
-        const native_handle = c.pine_window_get_native_handle(window.handle);
+        // access window functions through the backend vtable
+        const native_handle = window.backend.window_get_native_handle.?(window.handle);
 
         var width: u32 = undefined;
         var height: u32 = undefined;
-        c.pine_window_get_size(window.handle, &width, &height);
+        window.backend.window_get_size.?(window.handle, &width, &height);
 
         const config = c.PineSwapchainDesc{
             .native_window_handle = native_handle,
@@ -101,7 +103,7 @@ pub const Swapchain = struct {
         if (handle == null) return GraphicsError.SwapchainCreationFailed;
 
         // associate swapchain with window
-        c.pine_window_set_swapchain(window.handle, handle);
+        window.backend.window_set_swapchain.?(window.handle, handle);
 
         return Swapchain{
             .context = context,
@@ -111,7 +113,7 @@ pub const Swapchain = struct {
     }
 
     pub fn destroy(self: *Swapchain) void {
-        c.pine_window_set_swapchain(self.window.handle, null);
+        self.window.backend.window_set_swapchain.?(self.window.handle, null);
         self.context.backend.destroy_swapchain.?(self.handle);
     }
 
@@ -176,7 +178,7 @@ pub const RenderPass = struct {
     }
 };
 
-// API that works with swapchains instead of windows
+// api that works with swapchains instead of windows
 pub fn beginPass(swapchain: *Swapchain, pass_action: PassAction) !RenderPass {
     const c_pass_action = c.PinePassAction{
         .color = c.PineColorAttachment{

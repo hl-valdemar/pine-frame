@@ -16,7 +16,7 @@ pub fn main() !void {
     std.log.info("creating window...", .{});
 
     // create windows with proper cleanup on errors
-    var window = try pw.Window.create(std.heap.page_allocator, .{
+    var window = try pw.Window.create(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },

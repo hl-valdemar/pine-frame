@@ -1,4 +1,4 @@
-#import "../graphics.h"
+#import "../graphics-backend.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>

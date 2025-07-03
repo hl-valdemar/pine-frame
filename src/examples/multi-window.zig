@@ -16,7 +16,7 @@ pub fn main() !void {
     std.log.info("creating windows...", .{});
 
     // create windows with proper cleanup on errors
-    var window1 = try pw.Window.create(std.heap.page_allocator, .{
+    var window1 = try pw.Window.create(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
@@ -26,7 +26,7 @@ pub fn main() !void {
     });
     errdefer window1.destroy();
 
-    var window2 = try pw.Window.create(std.heap.page_allocator, .{
+    var window2 = try pw.Window.create(&plt, .{
         .width = 400,
         .height = 300,
         .position = .{ .x = 20, .y = 20 },

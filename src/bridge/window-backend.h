@@ -11,6 +11,7 @@ extern "C" {
 // forward declarations
 typedef struct PineWindow PineWindow;
 typedef struct PineSwapchain PineSwapchain;
+typedef struct PineWindowBackend PineWindowBackend;
 
 // window configuration structure
 typedef struct {
@@ -98,31 +99,39 @@ typedef struct {
   } data;
 } PineEvent;
 
-// platform initialization
-bool pine_platform_init(void);
-void pine_platform_shutdown(void);
+// window backend interface (vtable pattern)
+struct PineWindowBackend {
+  // platform management
+  bool (*platform_init)(void);
+  void (*platform_shutdown)(void);
+  void (*platform_poll_events)(void);
 
-// window management
-PineWindow *pine_window_create(const PineWindowDesc *config);
-void pine_window_destroy(PineWindow *window);
-void pine_window_show(PineWindow *window);
-void pine_window_hide(PineWindow *window);
-bool pine_window_should_close(PineWindow *window);
-void pine_window_request_close(PineWindow *window);
+  // window management
+  PineWindow *(*window_create)(const PineWindowDesc *config);
+  void (*window_destroy)(PineWindow *window);
+  void (*window_show)(PineWindow *window);
+  void (*window_hide)(PineWindow *window);
+  bool (*window_should_close)(PineWindow *window);
+  void (*window_request_close)(PineWindow *window);
 
-// get native handle for graphics backend
-void *pine_window_get_native_handle(PineWindow *window);
-void pine_window_get_size(PineWindow *window, uint32_t *width,
+  // window properties
+  void *(*window_get_native_handle)(PineWindow *window);
+  void (*window_get_size)(PineWindow *window, uint32_t *width,
                           uint32_t *height);
 
-// event processing
-void pine_platform_poll_events(void);
-bool pine_window_poll_event(PineWindow *window, PineEvent *event);
+  // event processing
+  bool (*window_poll_event)(PineWindow *window, PineEvent *event);
 
-// graphics integration: instead of rendering functions, provide a way to
-// get/set swapchain
-void pine_window_set_swapchain(PineWindow *window, PineSwapchain *swapchain);
-PineSwapchain *pine_window_get_swapchain(PineWindow *window);
+  // graphics integration
+  void (*window_set_swapchain)(PineWindow *window, PineSwapchain *swapchain);
+  PineSwapchain *(*window_get_swapchain)(PineWindow *window);
+};
+
+// backend factory functions (implemented per platform)
+PineWindowBackend *pine_create_cocoa_backend(void);   // macOS
+PineWindowBackend *pine_create_win32_backend(void);   // Windows
+PineWindowBackend *pine_create_x11_backend(void);     // Linux X11
+PineWindowBackend *pine_create_wayland_backend(void); // Linux Wayland
 
 #ifdef __cplusplus
 }

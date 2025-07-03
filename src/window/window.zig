@@ -9,30 +9,69 @@ pub const PineWindowError = error{
     WindowDestroyed,
     TitleTooLong,
     WindowCreationFailed,
+    BackendCreationFailed,
+    BackendNotImplemented,
+};
+
+pub const WindowBackend = enum {
+    cocoa, // macOS
+    win32, // windows
+    x11, // linux x11
+    wayland, // linux wayland
+    auto, // auto-detect best for platform
 };
 
 pub const Platform = struct {
+    backend: *c.PineWindowBackend,
     initialized: bool = false,
 
     pub fn init() !Platform {
-        if (!c.pine_platform_init()) {
+        return initWithBackend(.auto);
+    }
+
+    pub fn initWithBackend(backend_type: WindowBackend) !Platform {
+        const backend = switch (backend_type) {
+            .cocoa => c.pine_create_cocoa_backend(),
+            // TODO: implement these backends
+            // .win32 => c.pine_create_win32_backend(),
+            // .x11 => c.pine_create_x11_backend(),
+            // .wayland => c.pine_create_wayland_backend(),
+            .auto => switch (builtin.os.tag) {
+                .macos => c.pine_create_cocoa_backend(),
+                // TODO:
+                // .windows => c.pine_create_win32_backend(),
+                // .linux => c.pine_create_x11_backend(), // or wayland based on detection
+                else => return PineWindowError.BackendNotImplemented,
+            },
+            else => return PineWindowError.BackendNotImplemented,
+        };
+
+        if (backend == null) return PineWindowError.BackendCreationFailed;
+
+        if (!backend.*.platform_init.?()) {
             return PineWindowError.PlatformInitFailed;
         }
 
         return Platform{
+            .backend = backend,
             .initialized = true,
         };
     }
 
     pub fn deinit(self: *Platform) void {
         if (self.initialized) {
-            c.pine_platform_shutdown();
+            self.backend.platform_shutdown.?();
             self.initialized = false;
         }
     }
 
-    pub fn pollEvents(_: *const Platform) void {
-        c.pine_platform_poll_events();
+    pub fn pollEvents(self: *const Platform) void {
+        self.backend.platform_poll_events.?();
+    }
+
+    // utility method for creating a window without having to pass the platform
+    pub fn createWindow(self: *const Platform, desc: WindowDesc) !Window {
+        try Window.create(self, desc);
     }
 };
 
@@ -124,7 +163,7 @@ pub const KeyModifiers = struct {
     shift: bool = false,
     control: bool = false,
     opt: bool = false,
-    command: bool = false, // macOS specific, maps to Windows key on other platforms
+    command: bool = false, // macOS specific, maps to windows key on other platforms
 };
 
 pub const KeyEvent = struct {
@@ -148,14 +187,15 @@ pub const WindowID = usize;
 pub const Window = struct {
     var next_id: WindowID = 0;
 
-    allocator: Allocator,
+    backend: *c.PineWindowBackend,
     handle: ?*c.PineWindow,
     id: WindowID,
     destroyed: bool,
-    // key_states: std.AutoHashMap(KeyCode, EventType),
     key_states: [KeyCode.maxValue()]EventType, // without .unknown
 
-    pub fn create(allocator: Allocator, config: WindowDesc) !Window {
+    pub fn create(platform: *Platform, config: WindowDesc) !Window {
+        const backend = platform.backend;
+
         // convert zig string to null-terminated c string
         // todo: support "infinite" strings
         var title_buffer: [256]u8 = undefined;
@@ -176,11 +216,11 @@ pub const Window = struct {
             .visible = config.visible,
         };
 
-        const handle = c.pine_window_create(&c_config);
+        const handle = backend.window_create.?(&c_config);
         if (handle == null) return PineWindowError.WindowCreationFailed;
 
         return Window{
-            .allocator = allocator,
+            .backend = backend,
             .handle = handle.?,
             .id = nextId(),
             .destroyed = false,
@@ -190,33 +230,33 @@ pub const Window = struct {
 
     pub fn destroy(self: *Window) void {
         if (!self.destroyed) {
-            c.pine_window_destroy(self.handle.?);
+            self.backend.window_destroy.?(self.handle.?);
             self.handle = null;
             self.destroyed = true;
         }
     }
 
     pub fn show(self: *Window) void {
-        c.pine_window_show(self.handle);
+        self.backend.window_show.?(self.handle);
     }
 
     pub fn hide(self: *Window) void {
-        c.pine_window_hide(self.handle);
+        self.backend.window_hide.?(self.handle);
     }
 
     pub fn shouldClose(self: *Window) PineWindowError!bool {
         if (self.destroyed) return PineWindowError.WindowDestroyed;
-        return c.pine_window_should_close(self.handle.?);
+        return self.backend.window_should_close.?(self.handle.?);
     }
 
     pub fn requestClose(self: *Window) void {
         if (self.destroyed) return; // just ignore
-        c.pine_window_request_close(self.handle.?);
+        self.backend.window_request_close.?(self.handle.?);
     }
 
     pub fn pollEvent(self: *Window) !?Event {
         var c_event: c.PineEvent = undefined;
-        if (!c.pine_window_poll_event(self.handle, &c_event)) {
+        if (!self.backend.window_poll_event.?(self.handle, &c_event)) {
             return null;
         }
 
