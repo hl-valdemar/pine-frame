@@ -2,29 +2,101 @@
 #import <Cocoa/Cocoa.h>
 
 // simple event queue implementation
-#define MAX_EVENTS 256
+#define DEFAULT_MAX_EVENTS 256
+#define CRITICAL_EVENT_THRESHOLD 200 // warn when queue is ~80% full
 
 typedef struct {
-  PineEvent events[MAX_EVENTS];
+  PineEvent events[DEFAULT_MAX_EVENTS];
   size_t head;
   size_t tail;
   size_t count;
+
+  // metrics for monitoring
+  size_t total_events_processed;
+  size_t events_dropped;
+  size_t high_water_mark; // maximum queue usage seen
 } EventQueue;
+
+typedef enum {
+  EVENT_PRIORITY_LOW = 0,
+  EVENT_PRIORITY_NORMAL = 1,
+  EVENT_PRIORITY_HIGH = 2,
+} EventPriority;
+
+// helper to determine event priority
+static EventPriority get_event_priority(const PineEvent *event) {
+  switch (event->type) {
+  case PINE_EVENT_WINDOW_CLOSE:
+    return EVENT_PRIORITY_HIGH; // never drop close events
+  case PINE_EVENT_KEY_DOWN:
+  case PINE_EVENT_KEY_UP:
+    // check for important keys like escape
+    if (event->data.key_event.key == PINE_KEY_ESCAPE) {
+      return EVENT_PRIORITY_HIGH;
+    }
+    return EVENT_PRIORITY_NORMAL;
+  default:
+    return EVENT_PRIORITY_LOW;
+  }
+}
 
 static void event_queue_init(EventQueue *queue) {
   queue->head = 0;
   queue->tail = 0;
   queue->count = 0;
+  queue->total_events_processed = 0;
+  queue->events_dropped = 0;
+  queue->high_water_mark = 0;
 }
 
 static bool event_queue_push(EventQueue *queue, const PineEvent *event) {
-  if (queue->count >= MAX_EVENTS) {
-    return false; // queue full
+  if (queue->count >= DEFAULT_MAX_EVENTS) {
+    queue->events_dropped++;
+
+    // for high priority events, try to make room by dropping low priority ones
+    EventPriority new_priority = get_event_priority(event);
+    if (new_priority == EVENT_PRIORITY_HIGH) {
+      // scan queue for a low priority event to replace
+      size_t scan_idx = queue->head;
+      for (size_t i = 0; i < queue->count; i++) {
+        EventPriority existing_priority =
+            get_event_priority(&queue->events[scan_idx]);
+        if (existing_priority == EVENT_PRIORITY_LOW) {
+          // replace this event
+          queue->events[scan_idx] = *event;
+          NSLog(@"Replaced low priority event with high priority event");
+          return true;
+        }
+        scan_idx = (scan_idx + 1) % DEFAULT_MAX_EVENTS;
+      }
+    }
+
+    // log warning about dropped events periodically
+    if (queue->events_dropped % 100 == 1) { // log every 100 drops
+      NSLog(@"WARNING: Event queue overflow! Dropped %zu events total",
+            queue->events_dropped);
+    }
+
+    return false;
   }
 
   queue->events[queue->tail] = *event;
-  queue->tail = (queue->tail + 1) % MAX_EVENTS;
+  queue->tail = (queue->tail + 1) % DEFAULT_MAX_EVENTS;
   queue->count++;
+  queue->total_events_processed++;
+
+  // update high water mark
+  if (queue->count > queue->high_water_mark) {
+    queue->high_water_mark = queue->count;
+
+    // warn if getting close to limit
+    if (queue->count >= CRITICAL_EVENT_THRESHOLD) {
+      NSLog(@"WARNING: Event queue is %zu%% full (%zu/%d events)",
+            (queue->count * 100) / DEFAULT_MAX_EVENTS, queue->count,
+            DEFAULT_MAX_EVENTS);
+    }
+  }
+
   return true;
 }
 
@@ -34,9 +106,34 @@ static bool event_queue_pop(EventQueue *queue, PineEvent *event) {
   }
 
   *event = queue->events[queue->head];
-  queue->head = (queue->head + 1) % MAX_EVENTS;
+  queue->head = (queue->head + 1) % DEFAULT_MAX_EVENTS;
   queue->count--;
   return true;
+}
+
+// batch processing for better performance
+static size_t event_queue_pop_batch(EventQueue *queue, PineEvent *events,
+                                    size_t max_events) {
+  size_t popped = 0;
+  while (popped < max_events && queue->count > 0) {
+    events[popped] = queue->events[queue->head];
+    queue->head = (queue->head + 1) % DEFAULT_MAX_EVENTS;
+    queue->count--;
+    popped++;
+  }
+  return popped;
+}
+
+static void event_queue_get_stats(const EventQueue *queue,
+                                  size_t *current_count,
+                                  size_t *high_water_mark,
+                                  size_t *events_dropped) {
+  if (current_count)
+    *current_count = queue->count;
+  if (high_water_mark)
+    *high_water_mark = queue->high_water_mark;
+  if (events_dropped)
+    *events_dropped = queue->events_dropped;
 }
 
 // forward declaration for the window delegate
@@ -220,7 +317,8 @@ PineWindow *pine_window_create(const PineWindowDesc *config) {
       [window->ns_window center];
     }
 
-    // // create a simple NSView as content view (graphics backend will replace
+    // // create a simple NSView as content view (graphics backend will
+    // replace
     // // this)
     // NSView *contentView = [[NSView alloc] initWithFrame:windowRect];
     // [window->ns_window setContentView:contentView];
