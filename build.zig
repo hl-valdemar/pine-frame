@@ -48,31 +48,6 @@ pub fn build(b: *std.Build) !void {
 
     // link platform specific dependencies
     if (target.result.os.tag == .macos) {
-        // const platform_dep_lib = b.addStaticLibrary(.{
-        //     .name = "pine-platform-dep",
-        //     .target = target,
-        //     .optimize = optimize,
-        // });
-        //
-        // platform_dep_lib.addCSourceFile(.{
-        //     .file = b.path("src/bridge/window/macos.m"),
-        //     .language = .objective_c,
-        //     .flags = &[_][]const u8{"-fmodules"},
-        // });
-        // platform_dep_lib.addCSourceFile(.{
-        //     .file = b.path("src/bridge/graphics/metal-backend.m"),
-        //     .language = .objective_c,
-        //     .flags = &[_][]const u8{"-fmodules"},
-        // });
-        //
-        // platform_dep_lib.linkFramework("Metal");
-        // platform_dep_lib.linkFramework("MetalKit");
-        // platform_dep_lib.linkFramework("QuartzCore");
-        // platform_dep_lib.linkFramework("Cocoa"); // For NSView
-        //
-        // window_lib.linkLibrary(platform_dep_lib);
-        // graphics_lib.linkLibrary(platform_dep_lib);
-
         // window module only needs window-related frameworks
         const macos_window_lib = b.addStaticLibrary(.{
             .name = "pine-cocoa-window",
@@ -83,8 +58,12 @@ pub fn build(b: *std.Build) !void {
         macos_window_lib.addCSourceFile(.{
             .file = b.path("src/bridge/window/cocoa-backend.m"),
             .language = .objective_c,
-            .flags = &[_][]const u8{"-fmodules"},
+            .flags = &[_][]const u8{
+                "-fmodules",
+                if (optimize == .Debug) "-DDEBUG" else "",
+            },
         });
+
         macos_window_lib.linkFramework("Cocoa");
         macos_window_lib.linkFramework("Foundation");
 
@@ -100,13 +79,16 @@ pub fn build(b: *std.Build) !void {
         metal_backend_lib.addCSourceFile(.{
             .file = b.path("src/bridge/graphics/metal-backend.m"),
             .language = .objective_c,
-            .flags = &[_][]const u8{"-fmodules"},
+            .flags = &[_][]const u8{
+                "-fmodules",
+                if (optimize == .Debug) "-DDEBUG" else "",
+            },
         });
 
         metal_backend_lib.linkFramework("Metal");
         metal_backend_lib.linkFramework("MetalKit");
         metal_backend_lib.linkFramework("QuartzCore");
-        metal_backend_lib.linkFramework("Cocoa"); // For NSView
+        metal_backend_lib.linkFramework("Cocoa"); // for NSView
 
         graphics_lib.linkLibrary(metal_backend_lib);
     }
