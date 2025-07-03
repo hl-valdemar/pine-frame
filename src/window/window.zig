@@ -195,13 +195,10 @@ pub const Window = struct {
 
     pub fn create(platform: *Platform, config: WindowDesc) !Window {
         const backend = platform.backend;
+        const allocator = std.heap.c_allocator;
 
-        // convert zig string to null-terminated c string
-        // todo: support "infinite" strings
-        var title_buffer: [256]u8 = undefined;
-        const title_cstr = std.fmt.bufPrintZ(&title_buffer, "{s}", .{config.title}) catch {
-            return PineWindowError.TitleTooLong;
-        };
+        const title_cstr = try std.fmt.allocPrintZ(allocator, "{s}", .{config.title});
+        defer allocator.free(title_cstr);
 
         const c_config = c.PineWindowDesc{
             .width = config.width,
