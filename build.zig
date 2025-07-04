@@ -49,13 +49,13 @@ pub fn build(b: *std.Build) !void {
     // link platform specific dependencies
     if (target.result.os.tag == .macos) {
         // window module only needs window-related frameworks
-        const macos_window_lib = b.addStaticLibrary(.{
+        const cocoa_backend_lib = b.addStaticLibrary(.{
             .name = "pine-cocoa-window",
             .target = target,
             .optimize = optimize,
         });
 
-        macos_window_lib.addCSourceFile(.{
+        cocoa_backend_lib.addCSourceFile(.{
             .file = b.path("src/bridge/window/cocoa-backend.m"),
             .language = .objective_c,
             .flags = &[_][]const u8{
@@ -63,11 +63,18 @@ pub fn build(b: *std.Build) !void {
                 if (optimize == .Debug) "-DDEBUG" else "",
             },
         });
+        cocoa_backend_lib.addCSourceFile(.{
+            .file = b.path("src/bridge/log.c"),
+            .language = .c,
+            .flags = &[_][]const u8{
+                if (optimize == .Debug) "-DDEBUG" else "",
+            },
+        });
 
-        macos_window_lib.linkFramework("Cocoa");
-        macos_window_lib.linkFramework("Foundation");
+        cocoa_backend_lib.linkFramework("Cocoa");
+        cocoa_backend_lib.linkFramework("Foundation");
 
-        window_lib.linkLibrary(macos_window_lib);
+        window_lib.linkLibrary(cocoa_backend_lib);
 
         // graphics module gets its own metal backend
         const metal_backend_lib = b.addStaticLibrary(.{
@@ -81,6 +88,13 @@ pub fn build(b: *std.Build) !void {
             .language = .objective_c,
             .flags = &[_][]const u8{
                 "-fmodules",
+                if (optimize == .Debug) "-DDEBUG" else "",
+            },
+        });
+        metal_backend_lib.addCSourceFile(.{
+            .file = b.path("src/bridge/log.c"),
+            .language = .c,
+            .flags = &[_][]const u8{
                 if (optimize == .Debug) "-DDEBUG" else "",
             },
         });

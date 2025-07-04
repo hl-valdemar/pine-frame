@@ -1,26 +1,10 @@
 #import "../graphics-backend.h"
+#import "../log.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-// enable logs in debug builds
-#ifdef DEBUG
-void FilteredLog(const char *level, const char *scope, const char *format,
-                 ...) {
-  // print to stderr with custom formatting
-  fprintf(stderr, "[%s] (%s): ", level, scope);
-
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-
-  fprintf(stderr, "\n");
-}
-#else  // disable logs in release builds
-void FilteredLog(const char *level, const char *scope, const char *format,
-                 ...) {}
-#endif /* DEBUG */
+#define LOG_SCOPE "metal-backend"
 
 #define MAX_FRAMES_IN_FLIGHT 3 // triple buffering for smooth performance
 
@@ -121,8 +105,9 @@ static PineGraphicsContext *metal_create_context(void) {
     return NULL;
   }
 
-  FilteredLog("info", "metal-backend", "created metal context with device: %s",
-              [[ctx->device name] UTF8String]);
+  pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE,
+           "created metal context with device: %s",
+           [[ctx->device name] UTF8String]);
   return ctx;
 }
 
@@ -193,9 +178,9 @@ static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
       swapchain->frames[i].is_encoding = false;
     }
 
-    FilteredLog("info", "metal-backend",
-                "created swapchain with %d frames in flight",
-                MAX_FRAMES_IN_FLIGHT);
+    pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE,
+             "created swapchain with %d frames in flight",
+             MAX_FRAMES_IN_FLIGHT);
     return swapchain;
   }
 }
@@ -214,8 +199,8 @@ static void metal_destroy_swapchain(PineSwapchain *swapchain) {
         long result = dispatch_semaphore_wait(
             swapchain->frames[i].in_flight_semaphore, timeout);
         if (result != 0) {
-          FilteredLog("info", "metal-scope",
-                      "warning: timed out waiting for frame %d to complete", i);
+          pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+                   "timed out waiting for frame %d to complete", i);
         }
         dispatch_semaphore_signal(swapchain->frames[i].in_flight_semaphore);
       }
@@ -234,9 +219,9 @@ static void metal_destroy_swapchain(PineSwapchain *swapchain) {
     [swapchain->metal_view release];
     [swapchain->frame_lock release];
 
-    FilteredLog("info", "metal-backend",
-                "destroyed swapchain - submitted: %llu, completed: %llu frames",
-                swapchain->frames_submitted, swapchain->frames_completed);
+    pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE,
+             "destroyed swapchain - submitted: %llu, completed: %llu frames",
+             swapchain->frames_submitted, swapchain->frames_completed);
 
     free(swapchain);
   }
@@ -253,8 +238,8 @@ static void metal_resize_swapchain(PineSwapchain *swapchain, uint32_t width,
     // wait for any in-flight frames to complete before resizing
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
       if (swapchain->frames[i].is_encoding) {
-        FilteredLog("info", "metal-backend",
-                    "warning: resize requested while frame %d is encoding", i);
+        pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+                 "resize requested while frame %d is encoding", i);
       }
     }
 
@@ -283,8 +268,8 @@ static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
 
   // clean up any previous encoder that wasn't properly ended
   if (swapchain->current_encoder) {
-    FilteredLog("info", "metal-backend",
-                "warning: previous render encoder was not ended properly");
+    pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+             "previous render encoder was not ended properly");
     [swapchain->current_encoder endEncoding];
     swapchain->current_encoder = nil;
   }
@@ -305,7 +290,7 @@ static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
     dispatch_semaphore_signal(swapchain->drawable_semaphore);
     dispatch_semaphore_signal(frame->in_flight_semaphore);
     [swapchain->frame_lock unlock];
-    FilteredLog("info", "metal-backend", "failed to acquire drawable");
+    pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE, "failed to acquire drawable");
     return NULL;
   }
 
@@ -411,8 +396,8 @@ static void metal_end_render_pass(PineRenderPass *pass) {
 
 static void metal_present(PineSwapchain *swapchain) {
   if (!swapchain) {
-    FilteredLog("info", "metal-backend",
-                "warning: attempting to present with null swapchain");
+    pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+             "attempting to present with null swapchain");
     return;
   }
 
@@ -422,18 +407,17 @@ static void metal_present(PineSwapchain *swapchain) {
     FrameResources *frame = &swapchain->frames[swapchain->current_frame_index];
 
     if (!frame->command_buffer || !swapchain->current_drawable) {
-      FilteredLog("info", "metal-backend",
-                  "warning: attempting to present without valid command buffer "
-                  "or drawable");
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "attempting to present without valid command buffer "
+               "or drawable");
       [swapchain->frame_lock unlock];
       return;
     }
 
     // make sure any encoder is ended
     if (swapchain->current_encoder) {
-      FilteredLog(
-          "info", "metal-backend",
-          "warning: encoder still active during present, ending it now");
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "encoder still active during present, ending it now");
       [swapchain->current_encoder endEncoding];
       swapchain->current_encoder = nil;
       frame->is_encoding = false;
@@ -537,8 +521,8 @@ static PineShader *metal_create_shader(PineGraphicsContext *ctx,
                                                          error:&error];
 
     if (!library) {
-      FilteredLog("info", "metal-backend", "failed to compile shader: %@",
-                  error);
+      pine_log(PINE_LOG_LEVEL_ERROR, LOG_SCOPE, "failed to compile shader: %@",
+               error);
       return NULL;
     }
 
@@ -548,8 +532,9 @@ static PineShader *metal_create_shader(PineGraphicsContext *ctx,
     id<MTLFunction> function = [library newFunctionWithName:functionName];
 
     if (!function) {
-      FilteredLog("info", "metal-backend",
-                  "failed to find function %@ in shader", functionName);
+      pine_log(PINE_LOG_LEVEL_ERROR, LOG_SCOPE,
+               "failed to find function %s in shader",
+               [functionName UTF8String]);
       return NULL;
     }
 
@@ -612,8 +597,8 @@ static PinePipeline *metal_create_pipeline(PineGraphicsContext *ctx,
                                                     error:&error];
 
     if (!state) {
-      FilteredLog("info", "metal-backend",
-                  "failed to create pipeline state: %@", error);
+      pine_log(PINE_LOG_LEVEL_ERROR, "metal-backend",
+               "failed to create pipeline state: %@", error);
       return NULL;
     }
 

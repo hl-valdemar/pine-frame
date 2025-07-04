@@ -1,5 +1,8 @@
+#import "../log.h"
 #import "../window-backend.h"
 #import <Cocoa/Cocoa.h>
+
+#define LOG_SCOPE "cocoa-backend"
 
 // simple event queue implementation
 #define DEFAULT_MAX_EVENTS 256
@@ -64,7 +67,8 @@ static bool event_queue_push(EventQueue *queue, const PineEvent *event) {
         if (existing_priority == EVENT_PRIORITY_LOW) {
           // replace this event
           queue->events[scan_idx] = *event;
-          NSLog(@"Replaced low priority event with high priority event");
+          pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+                   "replaced low priority event with high priority event");
           return true;
         }
         scan_idx = (scan_idx + 1) % DEFAULT_MAX_EVENTS;
@@ -73,8 +77,9 @@ static bool event_queue_push(EventQueue *queue, const PineEvent *event) {
 
     // log warning about dropped events periodically
     if (queue->events_dropped % 100 == 1) { // log every 100 drops
-      NSLog(@"WARNING: Event queue overflow! Dropped %zu events total",
-            queue->events_dropped);
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "event queue overflow! dropped %zu events total",
+               queue->events_dropped);
     }
 
     return false;
@@ -91,9 +96,10 @@ static bool event_queue_push(EventQueue *queue, const PineEvent *event) {
 
     // warn if getting close to limit
     if (queue->count >= CRITICAL_EVENT_THRESHOLD) {
-      NSLog(@"WARNING: Event queue is %zu%% full (%zu/%d events)",
-            (queue->count * 100) / DEFAULT_MAX_EVENTS, queue->count,
-            DEFAULT_MAX_EVENTS);
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "event queue is %zu%% full (%zu/%d events)",
+               (queue->count * 100) / DEFAULT_MAX_EVENTS, queue->count,
+               DEFAULT_MAX_EVENTS);
     }
   }
 
