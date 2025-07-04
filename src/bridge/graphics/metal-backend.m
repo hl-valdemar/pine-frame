@@ -17,10 +17,7 @@ void FilteredLog(const char *level, const char *scope, const char *format,
 
   fprintf(stderr, "\n");
 }
-#endif /* DEBUG */
-
-// disable logs in release builds
-#ifndef DEBUG
+#else  // disable logs in release builds
 void FilteredLog(const char *level, const char *scope, const char *format,
                  ...) {}
 #endif /* DEBUG */
