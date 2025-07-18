@@ -443,7 +443,6 @@ static void metal_present(PineSwapchain *swapchain) {
   }
 }
 
-// Rest of the implementation remains the same...
 static void metal_get_capabilities(PineGraphicsContext *ctx,
                                    PineGraphicsCapabilities *caps) {
   if (!ctx || !caps)
