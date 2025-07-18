@@ -290,24 +290,28 @@ pub const VertexAttribute = struct {
     buffer_index: u32 = 0,
 };
 
+pub const PipelineDesc = struct {
+    vertex_shader: *Shader,
+    fragment_shader: *Shader,
+    attributes: []const VertexAttribute,
+    vertex_stride: usize,
+};
+
 pub const Pipeline = struct {
     handle: *c.PinePipeline,
     context: *Context,
 
     pub fn create(
         context: *Context,
-        vertex_shader: *Shader,
-        fragment_shader: *Shader,
-        attributes: []const VertexAttribute,
-        vertex_stride: usize,
+        desc: PipelineDesc,
     ) !Pipeline {
         const allocator = std.heap.c_allocator;
 
         // convert attributes to c format
-        var c_attrs = try allocator.alloc(c.PineVertexAttribute, attributes.len);
+        var c_attrs = try allocator.alloc(c.PineVertexAttribute, desc.attributes.len);
         defer allocator.free(c_attrs);
 
-        for (attributes, 0..) |attr, i| {
+        for (desc.attributes, 0..) |attr, i| {
             c_attrs[i] = .{
                 .format = @intFromEnum(attr.format),
                 .offset = attr.offset,
@@ -315,15 +319,15 @@ pub const Pipeline = struct {
             };
         }
 
-        const desc = c.PinePipelineDesc{
-            .vertex_shader = vertex_shader.handle,
-            .fragment_shader = fragment_shader.handle,
+        const c_desc = c.PinePipelineDesc{
+            .vertex_shader = desc.vertex_shader.handle,
+            .fragment_shader = desc.fragment_shader.handle,
             .attributes = c_attrs.ptr,
-            .attribute_count = attributes.len,
-            .vertex_stride = vertex_stride,
+            .attribute_count = desc.attributes.len,
+            .vertex_stride = desc.vertex_stride,
         };
 
-        const handle = context.backend.create_pipeline.?(context.handle, &desc);
+        const handle = context.backend.create_pipeline.?(context.handle, &c_desc);
         if (handle == null) return GraphicsError.PipelineCreationFailed;
 
         return Pipeline{

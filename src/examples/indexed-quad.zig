@@ -88,13 +88,12 @@ pub fn main() !void {
     };
 
     // create pipeline
-    var pipeline = try pg.Pipeline.create(
-        &graphics_ctx,
-        &vertex_shader,
-        &fragment_shader,
-        &attributes,
-        @sizeOf(Vertex),
-    );
+    var pipeline = try pg.Pipeline.create(&graphics_ctx, .{
+        .vertex_shader = &vertex_shader,
+        .fragment_shader = &fragment_shader,
+        .attributes = &attributes,
+        .vertex_stride = @sizeOf(Vertex),
+    });
     defer pipeline.destroy();
 
     std.log.info("creating vertex buffer...", .{});
