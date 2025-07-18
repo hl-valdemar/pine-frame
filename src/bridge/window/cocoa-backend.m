@@ -234,6 +234,8 @@ static bool cocoa_platform_init(void) {
     // ensure the app is properly launched
     [g_app finishLaunching];
 
+    pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE, "initialized cocoa platform");
+
     g_platform_initialized = true;
     return true;
   }
@@ -246,6 +248,8 @@ static void cocoa_platform_shutdown(void) {
 
   g_app = nil;
   g_platform_initialized = false;
+
+  pine_log(PINE_LOG_LEVEL_INFO, LOG_SCOPE, "shutdown cocoa platform");
 }
 
 static PineWindow *cocoa_window_create(const PineWindowDesc *config) {
