@@ -1,6 +1,7 @@
 const std = @import("std");
-const pw = @import("pine-window");
+
 const pg = @import("pine-graphics");
+const pw = @import("pine-window");
 
 pub const std_options = std.Options{
     .logFn = pw.log.logFn,
