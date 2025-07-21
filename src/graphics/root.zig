@@ -1,32 +1,29 @@
 //! Pine Graphics
 
-//-- global settings --//
+// global settings //
 
 pub const std_options = std.Options{
     .logFn = log.logFn,
 };
 
-const std = @import("std");
-
-//-- public exports --//
+// public exports //
 
 pub const log = @import("log.zig");
 
-// pub const commit = render.commit;
-
-pub const GraphicsContext = context.Context;
-pub const Swapchain = context.Swapchain;
-pub const RenderPass = context.RenderPass;
-pub const Pipeline = context.Pipeline;
-pub const Shader = context.Shader;
-pub const VertexAttribute = context.VertexAttribute;
-pub const Buffer = context.Buffer;
-pub const BufferDesc = context.BufferDesc;
+pub const GraphicsContext = graphics.Context;
+pub const Swapchain = graphics.Swapchain;
+pub const RenderPass = graphics.RenderPass;
+pub const Pipeline = graphics.Pipeline;
+pub const Shader = graphics.Shader;
+pub const VertexAttribute = graphics.VertexAttribute;
+pub const Buffer = graphics.Buffer;
+pub const BufferDesc = graphics.BufferDesc;
 
 // functions
-pub const beginPass = context.beginPass;
-pub const present = context.present;
+pub const beginPass = graphics.beginPass;
+pub const present = graphics.present;
 
-//-- private imports --//
+// private imports //
 
-const context = @import("context.zig");
+const std = @import("std");
+const graphics = @import("graphics.zig");
