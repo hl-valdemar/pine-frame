@@ -193,7 +193,7 @@ pub const Window = struct {
     destroyed: bool,
     key_states: [KeyCode.maxValue()]EventType, // without .unknown
 
-    pub fn init(platform: *Platform, config: WindowDesc) !Window {
+    pub fn init(platform: *const Platform, config: WindowDesc) !Window {
         const backend = platform.backend;
         const allocator = std.heap.c_allocator;
 
