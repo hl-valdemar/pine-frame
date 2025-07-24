@@ -17,7 +17,7 @@ pub fn main() !void {
     std.log.info("creating window...", .{});
 
     // create a window
-    var window = try pw.Window.create(&plt, .{
+    var window = try pw.Window.init(&plt, .{
         .width = 400,
         .height = 300,
         .position = .{ .center = true },
@@ -25,7 +25,7 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    defer window.destroy();
+    defer window.deinit();
 
     std.log.info("window created! press keys to see events. press esc to exit.", .{});
 

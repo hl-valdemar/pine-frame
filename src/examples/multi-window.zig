@@ -17,7 +17,7 @@ pub fn main() !void {
     std.log.info("creating windows...", .{});
 
     // create windows with proper cleanup on errors
-    var window1 = try pw.Window.create(&plt, .{
+    var window1 = try pw.Window.init(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
@@ -25,9 +25,9 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    errdefer window1.destroy();
+    errdefer window1.deinit();
 
-    var window2 = try pw.Window.create(&plt, .{
+    var window2 = try pw.Window.init(&plt, .{
         .width = 400,
         .height = 300,
         .position = .{ .x = 20, .y = 20 },
@@ -35,7 +35,7 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    errdefer window2.destroy();
+    errdefer window2.deinit();
 
     std.log.info("both windows created successfully! starting event loop...", .{});
 
@@ -48,13 +48,13 @@ pub fn main() !void {
         // check and close window1 if needed
         if (window1.shouldClose() catch false) { // again, if shouldClose fails, the window is already destroyed
             std.log.info("main window requested close", .{});
-            window1.destroy();
+            window1.deinit();
         }
 
         // check and close window2 if needed
         if (window2.shouldClose() catch false) {
             std.log.info("secondary window requested close", .{});
-            window2.destroy();
+            window2.deinit();
         }
 
         // add a small delay to prevent excessive cpu usage

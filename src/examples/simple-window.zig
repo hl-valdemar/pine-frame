@@ -17,7 +17,7 @@ pub fn main() !void {
     std.log.info("creating window...", .{});
 
     // create windows with proper cleanup on errors
-    var window = try pw.Window.create(&plt, .{
+    var window = try pw.Window.init(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
@@ -25,7 +25,7 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    defer window.destroy();
+    defer window.deinit();
 
     std.log.info("window created successfully! starting event loop...", .{});
 

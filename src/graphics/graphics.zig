@@ -61,7 +61,7 @@ pub const Context = struct {
         };
     }
 
-    pub fn deinit(self: *Context) void {
+    pub fn deinit(self: *const Context) void {
         self.backend.destroy_context.?(self.handle);
     }
 
@@ -112,7 +112,7 @@ pub const Swapchain = struct {
         };
     }
 
-    pub fn deinit(self: *Swapchain) void {
+    pub fn deinit(self: *const Swapchain) void {
         self.window.backend.window_set_swapchain.?(self.window.handle, null);
         self.context.backend.destroy_swapchain.?(self.handle);
     }
@@ -244,7 +244,7 @@ pub const Buffer = struct {
         };
     }
 
-    pub fn deinit(self: *Buffer) void {
+    pub fn deinit(self: *const Buffer) void {
         self.context.backend.destroy_buffer.?(self.handle);
     }
 };
@@ -273,7 +273,7 @@ pub const Shader = struct {
         };
     }
 
-    pub fn deinit(self: *Shader) void {
+    pub fn deinit(self: *const Shader) void {
         self.context.backend.destroy_shader.?(self.handle);
     }
 };
@@ -336,7 +336,7 @@ pub const Pipeline = struct {
         };
     }
 
-    pub fn deinit(self: *Pipeline) void {
+    pub fn deinit(self: *const Pipeline) void {
         self.context.backend.destroy_pipeline.?(self.handle);
     }
 };

@@ -50,13 +50,13 @@ pub fn main() !void {
     std.log.info("creating graphics context...", .{});
 
     // create graphics context
-    var graphics_ctx = try pg.GraphicsContext.create(.auto);
-    defer graphics_ctx.destroy();
+    var graphics_ctx = try pg.GraphicsContext.init(.auto);
+    defer graphics_ctx.deinit();
 
     std.log.info("creating window...", .{});
 
     // create window
-    var window = try pw.Window.create(&plt, .{
+    var window = try pw.Window.init(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
@@ -64,22 +64,22 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    defer window.destroy();
+    defer window.deinit();
 
     std.log.info("creating swapchain...", .{});
 
     // create swapchain
-    var swapchain = try pg.Swapchain.create(&graphics_ctx, &window);
-    defer swapchain.destroy();
+    var swapchain = try pg.Swapchain.init(&graphics_ctx, &window);
+    defer swapchain.deinit();
 
     std.log.info("creating shaders...", .{});
 
     // create shaders
-    var vertex_shader = try pg.Shader.create(&graphics_ctx, metal_shader_source, .vertex);
-    defer vertex_shader.destroy();
+    var vertex_shader = try pg.Shader.init(&graphics_ctx, metal_shader_source, .vertex);
+    defer vertex_shader.deinit();
 
-    var fragment_shader = try pg.Shader.create(&graphics_ctx, metal_shader_source, .fragment);
-    defer fragment_shader.destroy();
+    var fragment_shader = try pg.Shader.init(&graphics_ctx, metal_shader_source, .fragment);
+    defer fragment_shader.deinit();
 
     std.log.info("creating pipeline...", .{});
 
@@ -90,13 +90,13 @@ pub fn main() !void {
     };
 
     // create pipeline
-    var pipeline = try pg.Pipeline.create(&graphics_ctx, .{
+    var pipeline = try pg.Pipeline.init(&graphics_ctx, .{
         .vertex_shader = &vertex_shader,
         .fragment_shader = &fragment_shader,
         .attributes = &attributes,
         .vertex_stride = @sizeOf(Vertex),
     });
-    defer pipeline.destroy();
+    defer pipeline.deinit();
 
     std.log.info("creating vertex buffer...", .{});
 
@@ -109,11 +109,11 @@ pub fn main() !void {
 
     // create vertex buffer
     const vertex_data = std.mem.sliceAsBytes(&vertices);
-    var vertex_buffer = try pg.Buffer.create(&graphics_ctx, .{
+    var vertex_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = vertex_data,
         .type = .vertex,
     });
-    defer vertex_buffer.destroy();
+    defer vertex_buffer.deinit();
 
     std.log.info("starting render loop...", .{});
 
