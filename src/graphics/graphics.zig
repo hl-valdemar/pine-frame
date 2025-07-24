@@ -34,7 +34,7 @@ pub const Context = struct {
     backend: *c.PineGraphicsBackend,
     handle: *c.PineGraphicsContext,
 
-    pub fn create(backend_type: Backend) !Context {
+    pub fn init(backend_type: Backend) !Context {
         const backend = switch (backend_type) {
             .metal => c.pine_create_metal_backend(),
             // TODO:
@@ -61,7 +61,7 @@ pub const Context = struct {
         };
     }
 
-    pub fn destroy(self: *Context) void {
+    pub fn deinit(self: *Context) void {
         self.backend.destroy_context.?(self.handle);
     }
 
@@ -84,7 +84,7 @@ pub const Swapchain = struct {
     handle: *c.PineSwapchain,
     window: *Window,
 
-    pub fn create(context: *Context, window: *Window) !Swapchain {
+    pub fn init(context: *Context, window: *Window) !Swapchain {
         // access window functions through the backend vtable
         const native_handle = window.backend.window_get_native_handle.?(window.handle);
 
@@ -112,7 +112,7 @@ pub const Swapchain = struct {
         };
     }
 
-    pub fn destroy(self: *Swapchain) void {
+    pub fn deinit(self: *Swapchain) void {
         self.window.backend.window_set_swapchain.?(self.window.handle, null);
         self.context.backend.destroy_swapchain.?(self.handle);
     }
@@ -226,7 +226,7 @@ pub const Buffer = struct {
     context: *Context,
     len: usize,
 
-    pub fn create(context: *Context, desc: BufferDesc) !Buffer {
+    pub fn init(context: *Context, desc: BufferDesc) !Buffer {
         const c_desc = c.PineBufferDesc{
             .data = desc.data.ptr,
             .len = desc.data.len,
@@ -244,7 +244,7 @@ pub const Buffer = struct {
         };
     }
 
-    pub fn destroy(self: *Buffer) void {
+    pub fn deinit(self: *Buffer) void {
         self.context.backend.destroy_buffer.?(self.handle);
     }
 };
@@ -258,7 +258,7 @@ pub const Shader = struct {
     handle: *c.PineShader,
     context: *Context,
 
-    pub fn create(context: *Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
+    pub fn init(context: *Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
         const desc = c.PineShaderDesc{
             .source = source.ptr,
             .type = @intFromEnum(shader_type),
@@ -273,7 +273,7 @@ pub const Shader = struct {
         };
     }
 
-    pub fn destroy(self: *Shader) void {
+    pub fn deinit(self: *Shader) void {
         self.context.backend.destroy_shader.?(self.handle);
     }
 };
@@ -301,7 +301,7 @@ pub const Pipeline = struct {
     handle: *c.PinePipeline,
     context: *Context,
 
-    pub fn create(
+    pub fn init(
         context: *Context,
         desc: PipelineDesc,
     ) !Pipeline {
@@ -336,7 +336,7 @@ pub const Pipeline = struct {
         };
     }
 
-    pub fn destroy(self: *Pipeline) void {
+    pub fn deinit(self: *Pipeline) void {
         self.context.backend.destroy_pipeline.?(self.handle);
     }
 };

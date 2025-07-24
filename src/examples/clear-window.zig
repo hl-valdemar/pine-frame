@@ -17,8 +17,8 @@ pub fn main() !void {
     std.log.info("creating graphics context...", .{});
 
     // create graphics context (auto-selects best backend for platform)
-    var graphics_ctx = try pg.GraphicsContext.create(.auto);
-    defer graphics_ctx.destroy();
+    var graphics_ctx = try pg.GraphicsContext.init(.auto);
+    defer graphics_ctx.deinit();
 
     // query and log graphics capabilities
     const caps = graphics_ctx.getCapabilities();
@@ -30,7 +30,7 @@ pub fn main() !void {
     std.log.info("creating window...", .{});
 
     // create a window
-    var window = try pw.Window.create(&plt, .{
+    var window = try pw.Window.init(&plt, .{
         .width = 800,
         .height = 600,
         .position = .{ .center = true },
@@ -38,13 +38,13 @@ pub fn main() !void {
         .resizable = true,
         .visible = true,
     });
-    defer window.destroy();
+    defer window.deinit();
 
     std.log.info("creating swapchain...", .{});
 
     // create swapchain for the window
-    var swapchain = try pg.Swapchain.create(&graphics_ctx, &window);
-    defer swapchain.destroy();
+    var swapchain = try pg.Swapchain.init(&graphics_ctx, &window);
+    defer swapchain.deinit();
 
     std.log.info("starting event loop...", .{});
 

@@ -71,7 +71,7 @@ pub const Platform = struct {
 
     // utility method for creating a window without having to pass the platform
     pub fn createWindow(self: *const Platform, desc: WindowDesc) !Window {
-        try Window.create(self, desc);
+        try Window.init(self, desc);
     }
 };
 
@@ -193,7 +193,7 @@ pub const Window = struct {
     destroyed: bool,
     key_states: [KeyCode.maxValue()]EventType, // without .unknown
 
-    pub fn create(platform: *Platform, config: WindowDesc) !Window {
+    pub fn init(platform: *Platform, config: WindowDesc) !Window {
         const backend = platform.backend;
         const allocator = std.heap.c_allocator;
 
@@ -225,7 +225,7 @@ pub const Window = struct {
         };
     }
 
-    pub fn destroy(self: *Window) void {
+    pub fn deinit(self: *Window) void {
         if (!self.destroyed) {
             self.backend.window_destroy.?(self.handle.?);
             self.handle = null;
