@@ -48,16 +48,15 @@ pub const Context = struct {
                 else => return GraphicsError.BackendNotImplemented,
             },
             else => return GraphicsError.BackendNotImplemented,
+        } orelse return GraphicsError.BackendCreationFailed;
+
+        const handle = backend.*.create_context.?() orelse {
+            return GraphicsError.ContextCreationFailed;
         };
-
-        if (backend == null) return GraphicsError.BackendCreationFailed;
-
-        const handle = backend.*.create_context.?();
-        if (handle == null) return GraphicsError.ContextCreationFailed;
 
         return Context{
             .backend = backend,
-            .handle = handle.?,
+            .handle = handle,
         };
     }
 
@@ -65,7 +64,7 @@ pub const Context = struct {
         self.backend.destroy_context.?(self.handle);
     }
 
-    pub fn getCapabilities(self: *Context) GraphicsCapabilities {
+    pub fn getCapabilities(self: *const Context) GraphicsCapabilities {
         var caps: c.PineGraphicsCapabilities = undefined;
         self.backend.get_capabilities.?(self.handle, &caps);
 
@@ -80,11 +79,11 @@ pub const Context = struct {
 };
 
 pub const Swapchain = struct {
-    context: *Context,
+    context: *const Context,
+    window: *const Window,
     handle: *c.PineSwapchain,
-    window: *Window,
 
-    pub fn init(context: *Context, window: *Window) !Swapchain {
+    pub fn init(context: *const Context, window: *const Window) !Swapchain {
         // access window functions through the backend vtable
         const native_handle = window.backend.window_get_native_handle.?(window.handle);
 
@@ -99,16 +98,17 @@ pub const Swapchain = struct {
             .vsync = true,
         };
 
-        const handle = context.backend.create_swapchain.?(context.handle, &config);
-        if (handle == null) return GraphicsError.SwapchainCreationFailed;
+        const handle = context.backend.create_swapchain.?(context.handle, &config) orelse {
+            return GraphicsError.SwapchainCreationFailed;
+        };
 
         // associate swapchain with window
         window.backend.window_set_swapchain.?(window.handle, handle);
 
         return Swapchain{
             .context = context,
-            .handle = handle.?,
             .window = window,
+            .handle = handle,
         };
     }
 
@@ -117,13 +117,13 @@ pub const Swapchain = struct {
         self.context.backend.destroy_swapchain.?(self.handle);
     }
 
-    pub fn present(self: *Swapchain) void {
+    pub fn present(self: *const Swapchain) void {
         if (self.context.backend.present) |p| {
             p(self.handle);
         }
     }
 
-    pub fn resize(self: *Swapchain, width: u32, height: u32) void {
+    pub fn resize(self: *const Swapchain, width: u32, height: u32) void {
         self.context.backend.resize_swapchain.?(self.handle, width, height);
     }
 };
@@ -154,32 +154,32 @@ pub const PassAction = struct {
 };
 
 pub const RenderPass = struct {
-    swapchain: *Swapchain,
+    swapchain: *const Swapchain,
     handle: *c.PineRenderPass,
 
-    pub fn setPipeline(self: *RenderPass, pipeline: *Pipeline) void {
+    pub fn setPipeline(self: *const RenderPass, pipeline: *const Pipeline) void {
         self.swapchain.context.backend.set_pipeline.?(self.handle, pipeline.handle);
     }
 
-    pub fn setVertexBuffer(self: *RenderPass, index: u32, buffer: *Buffer) void {
+    pub fn setVertexBuffer(self: *const RenderPass, index: u32, buffer: *const Buffer) void {
         self.swapchain.context.backend.set_vertex_buffer.?(self.handle, index, buffer.handle);
     }
 
-    pub fn draw(self: *RenderPass, vertex_count: u32, first_vertex: u32) void {
+    pub fn draw(self: *const RenderPass, vertex_count: u32, first_vertex: u32) void {
         self.swapchain.context.backend.draw.?(self.handle, vertex_count, first_vertex);
     }
 
-    pub fn drawIndexed(self: *RenderPass, buffer: *Buffer, first_index: u32, vertex_offset: i32) void {
+    pub fn drawIndexed(self: *const RenderPass, buffer: *const Buffer, first_index: u32, vertex_offset: i32) void {
         self.swapchain.context.backend.draw_indexed.?(self.handle, buffer.handle, first_index, vertex_offset);
     }
 
-    pub fn end(self: *RenderPass) void {
+    pub fn end(self: *const RenderPass) void {
         self.swapchain.context.backend.end_render_pass.?(self.handle);
     }
 };
 
 // api that works with swapchains instead of windows
-pub fn beginPass(swapchain: *Swapchain, pass_action: PassAction) !RenderPass {
+pub fn beginPass(swapchain: *const Swapchain, pass_action: PassAction) !RenderPass {
     const c_pass_action = c.PinePassAction{
         .color = c.PineColorAttachment{
             .action = @intFromEnum(pass_action.color.action),
@@ -195,12 +195,13 @@ pub fn beginPass(swapchain: *Swapchain, pass_action: PassAction) !RenderPass {
         },
     };
 
-    const handle = swapchain.context.backend.begin_render_pass.?(swapchain.handle, &c_pass_action);
-    if (handle == null) return GraphicsError.NoSwapchain;
+    const handle = swapchain.context.backend.begin_render_pass.?(swapchain.handle, &c_pass_action) orelse {
+        return GraphicsError.NoSwapchain;
+    };
 
     return RenderPass{
         .swapchain = swapchain,
-        .handle = handle.?,
+        .handle = handle,
     };
 }
 
@@ -222,11 +223,11 @@ pub const BufferDesc = struct {
 };
 
 pub const Buffer = struct {
-    handle: *c.PineBuffer,
-    context: *Context,
+    context: *const Context,
     len: usize,
+    handle: *c.PineBuffer,
 
-    pub fn init(context: *Context, desc: BufferDesc) !Buffer {
+    pub fn init(context: *const Context, desc: BufferDesc) !Buffer {
         const c_desc = c.PineBufferDesc{
             .data = desc.data.ptr,
             .len = desc.data.len,
@@ -234,13 +235,14 @@ pub const Buffer = struct {
             .index_type = @intFromEnum(desc.index_type),
         };
 
-        const handle = context.backend.create_buffer.?(context.handle, &c_desc);
-        if (handle == null) return GraphicsError.BufferCreationFailed;
+        const handle = context.backend.create_buffer.?(context.handle, &c_desc) orelse {
+            return GraphicsError.BufferCreationFailed;
+        };
 
         return Buffer{
-            .handle = handle.?,
             .context = context,
             .len = c_desc.len,
+            .handle = handle,
         };
     }
 
@@ -255,20 +257,21 @@ pub const ShaderType = enum(u32) {
 };
 
 pub const Shader = struct {
+    context: *const Context,
     handle: *c.PineShader,
-    context: *Context,
 
-    pub fn init(context: *Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
+    pub fn init(context: *const Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
         const desc = c.PineShaderDesc{
             .source = source.ptr,
             .type = @intFromEnum(shader_type),
         };
 
-        const handle = context.backend.create_shader.?(context.handle, &desc);
-        if (handle == null) return GraphicsError.ShaderCreationFailed;
+        const handle = context.backend.create_shader.?(context.handle, &desc) orelse {
+            return GraphicsError.ShaderCreationFailed;
+        };
 
         return Shader{
-            .handle = handle.?,
+            .handle = handle,
             .context = context,
         };
     }
@@ -298,11 +301,11 @@ pub const PipelineDesc = struct {
 };
 
 pub const Pipeline = struct {
+    context: *const Context,
     handle: *c.PinePipeline,
-    context: *Context,
 
     pub fn init(
-        context: *Context,
+        context: *const Context,
         desc: PipelineDesc,
     ) !Pipeline {
         const allocator = std.heap.c_allocator;
@@ -327,12 +330,13 @@ pub const Pipeline = struct {
             .vertex_stride = desc.vertex_stride,
         };
 
-        const handle = context.backend.create_pipeline.?(context.handle, &c_desc);
-        if (handle == null) return GraphicsError.PipelineCreationFailed;
+        const handle = context.backend.create_pipeline.?(context.handle, &c_desc) orelse {
+            return GraphicsError.PipelineCreationFailed;
+        };
 
         return Pipeline{
-            .handle = handle.?,
             .context = context,
+            .handle = handle,
         };
     }
 
