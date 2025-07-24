@@ -44,9 +44,7 @@ pub const Platform = struct {
                 else => return PineWindowError.BackendNotImplemented,
             },
             else => return PineWindowError.BackendNotImplemented,
-        };
-
-        if (backend == null) return PineWindowError.BackendCreationFailed;
+        } orelse return PineWindowError.BackendCreationFailed;
 
         if (!backend.*.platform_init.?()) {
             return PineWindowError.PlatformInitFailed;
@@ -213,12 +211,13 @@ pub const Window = struct {
             .visible = config.visible,
         };
 
-        const handle = backend.window_create.?(&c_config);
-        if (handle == null) return PineWindowError.WindowCreationFailed;
+        const handle = backend.window_create.?(&c_config) orelse {
+            return PineWindowError.WindowCreationFailed;
+        };
 
         return Window{
             .backend = backend,
-            .handle = handle.?,
+            .handle = handle,
             .id = nextId(),
             .destroyed = false,
             .key_states = [_]EventType{.none} ** KeyCode.maxValue(),
@@ -233,20 +232,20 @@ pub const Window = struct {
         }
     }
 
-    pub fn show(self: *Window) void {
+    pub fn show(self: *const Window) void {
         self.backend.window_show.?(self.handle);
     }
 
-    pub fn hide(self: *Window) void {
+    pub fn hide(self: *const Window) void {
         self.backend.window_hide.?(self.handle);
     }
 
-    pub fn shouldClose(self: *Window) PineWindowError!bool {
+    pub fn shouldClose(self: *const Window) PineWindowError!bool {
         if (self.destroyed) return PineWindowError.WindowDestroyed;
         return self.backend.window_should_close.?(self.handle.?);
     }
 
-    pub fn requestClose(self: *Window) void {
+    pub fn requestClose(self: *const Window) void {
         if (self.destroyed) return; // just ignore
         self.backend.window_request_close.?(self.handle.?);
     }
