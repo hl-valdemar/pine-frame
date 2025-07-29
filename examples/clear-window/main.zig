@@ -53,18 +53,11 @@ pub fn main() !void {
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        // handle window resize
-        // TODO: Add window resize event handling
-        // if (window.wasResized()) {
-        //     const size = window.getSize();
-        //     swapchain.resize(size.width, size.height);
-        // }
-
         // begin render pass
         var render_pass = try pg.beginPass(&swapchain, .{
             .color = .{
                 .action = .clear,
-                .r = @sin(@as(f32, @floatFromInt(frame_count)) * 0.01) * 0.5 + 0.5,
+                .r = @sin(@as(f32, @floatFromInt(frame_count)) * 0.05) * 0.5 + 0.5,
                 .g = 0.3,
                 .b = 0.3,
                 .a = 1.0,
