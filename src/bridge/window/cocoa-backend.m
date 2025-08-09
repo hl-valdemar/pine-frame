@@ -203,9 +203,15 @@ static bool g_platform_initialized = false;
 - (void)windowDidResize:(NSNotification *)notification {
   // graphics backend will handle resize through the swapchain
   if (self.pineWindow) {
+    NSRect contentRect = [self.pineWindow->ns_window
+        contentRectForFrameRect:self.pineWindow->ns_window.frame];
+    CGFloat scale = self.pineWindow->ns_window.backingScaleFactor;
+
     PineEvent event = {0};
     event.kind = PINE_EVENT_WINDOW_RESIZE;
-    // don't fill ev.data.* here (avoid assuming union field names).
+    event.data.resize_event.width = contentRect.size.width * scale;
+    event.data.resize_event.height = contentRect.size.height * scale;
+
     // NOTE: the zig side can call window_get_size() to obtain the new
     // width/height.
     event_queue_push(&self.pineWindow->event_queue, &event);

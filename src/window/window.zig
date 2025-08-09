@@ -180,6 +180,8 @@ pub const Event = union(EventKind) {
     },
     window_resize: struct {
         id: WindowID,
+        width: f64,
+        height: f64,
     },
 };
 
@@ -300,7 +302,7 @@ pub const Window = struct {
                     .window_id = self.id,
                 };
 
-                // NOTE: this may be foolish if no platforms release events when no key is pressed.
+                // NOTE: this block may be foolish if no platforms release events when no key is pressed.
                 // if that's the case, then all key-up events will be, essentially, unable to "repeat".
                 {
                     // first check previous key state
@@ -317,7 +319,11 @@ pub const Window = struct {
                 .window_close = .{ .id = self.id },
             },
             c.PINE_EVENT_WINDOW_RESIZE => Event{
-                .window_resize = .{ .id = self.id },
+                .window_resize = .{
+                    .id = self.id,
+                    .width = c_event.data.resize_event.width,
+                    .height = c_event.data.resize_event.height,
+                },
             },
             else => null,
         };

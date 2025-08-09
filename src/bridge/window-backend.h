@@ -97,6 +97,10 @@ typedef struct {
       bool opt;
       bool command;
     } key_event;
+    struct {
+      double_t width;
+      double_t height;
+    } resize_event;
   } data;
 } PineEvent;
 

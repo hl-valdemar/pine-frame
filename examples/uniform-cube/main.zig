@@ -62,11 +62,11 @@ pub fn main() !void {
     defer graphics_ctx.deinit();
 
     // create window
-    var win_width: f64 = 800;
-    var win_height: f64 = 600;
+    const default_width: f64 = 800;
+    const default_height: f64 = 600;
     var window = try pw.Window.init(&plt, .{
-        .width = win_width,
-        .height = win_height,
+        .width = default_width,
+        .height = default_height,
         .position = .{ .center = true },
         .title = "Pine Engine - 3D Cube",
         .resizable = true,
@@ -153,7 +153,7 @@ pub fn main() !void {
     std.log.info("entering render loop...", .{});
 
     // calculate aspect ratio
-    var aspect_ratio = @as(f32, @floatCast(win_width / win_height));
+    var aspect_ratio = @as(f32, @floatCast(default_width / default_height));
 
     // main loop
     while (!try window.shouldClose()) {
@@ -168,9 +168,8 @@ pub fn main() !void {
                         break;
                     }
                 },
-                .window_resize => { // recompute aspect ratio
-                    window.getSize(&win_width, &win_height);
-                    aspect_ratio = @as(f32, @floatCast(win_width / win_height));
+                .window_resize => |resize_event| { // recompute aspect ratio
+                    aspect_ratio = @as(f32, @floatCast(resize_event.width / resize_event.height));
                 },
                 else => {},
             }
