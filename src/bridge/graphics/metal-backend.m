@@ -8,18 +8,18 @@
 
 #define MAX_FRAMES_IN_FLIGHT 3 // triple buffering for smooth performance
 
-// metal-specific context
-struct PineGraphicsContext {
-  id<MTLDevice> device;
-  id<MTLCommandQueue> command_queue;
-};
-
 // per-frame resources
 typedef struct {
   dispatch_semaphore_t in_flight_semaphore; // cpu-gpu sync
   id<MTLCommandBuffer> command_buffer;
   bool is_encoding; // track if frame is currently encoding
 } FrameResources;
+
+// metal-specific context
+struct PineGraphicsContext {
+  id<MTLDevice> device;
+  id<MTLCommandQueue> command_queue;
+};
 
 // metal-specific swapchain
 struct PineSwapchain {
@@ -457,7 +457,7 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
 }
 
 struct PineBuffer {
-  id<MTLBuffer> buffer;
+  id<MTLBuffer> mtl_buffer;
   size_t len;
   PineBufferKind kind;
   PineIndexType index_type;
@@ -485,12 +485,12 @@ static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
   buffer->kind = desc->kind;
   buffer->index_type = desc->index_type;
   buffer->len = desc->len;
-  buffer->buffer =
+  buffer->mtl_buffer =
       [ctx->device newBufferWithBytes:desc->data
                                length:desc->len
                               options:MTLResourceStorageModeShared];
 
-  if (!buffer->buffer) {
+  if (!buffer->mtl_buffer) {
     free(buffer);
     return NULL;
   }
@@ -501,7 +501,7 @@ static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
 static void metal_destroy_buffer(PineBuffer *buffer) {
   if (!buffer)
     return;
-  buffer->buffer = nil;
+  buffer->mtl_buffer = nil;
   free(buffer);
 }
 
@@ -627,11 +627,30 @@ static void metal_set_pipeline(PineRenderPass *pass, PinePipeline *pipeline) {
 }
 
 static void metal_set_vertex_buffer(PineRenderPass *pass, uint32_t index,
-                                    PineBuffer *buffer) {
-  if (!pass || !buffer)
+                                    PineBuffer *vertex_buffer) {
+  if (!pass || !vertex_buffer)
     return;
 
-  [pass->encoder setVertexBuffer:buffer->buffer offset:0 atIndex:index];
+  [pass->encoder setVertexBuffer:vertex_buffer->mtl_buffer
+                          offset:0
+                         atIndex:index];
+}
+
+static void metal_set_uniform_buffer(PineRenderPass *pass, uint32_t index,
+                                     uint32_t offset,
+                                     PineBuffer *uniform_buffer) {
+  if (!pass || !uniform_buffer)
+    return;
+
+  if (uniform_buffer->kind != PINE_BUFFER_UNIFORM) {
+    pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+             "tried to set non-uniform buffer as uniform");
+    return;
+  }
+
+  [pass->encoder setVertexBuffer:uniform_buffer->mtl_buffer
+                          offset:offset
+                         atIndex:index];
 }
 
 static void metal_draw(PineRenderPass *pass, uint32_t vertex_count,
@@ -644,25 +663,25 @@ static void metal_draw(PineRenderPass *pass, uint32_t vertex_count,
                     vertexCount:vertex_count];
 }
 
-static void metal_draw_indexed(PineRenderPass *pass, PineBuffer *buffer,
+static void metal_draw_indexed(PineRenderPass *pass, PineBuffer *index_buffer,
                                uint32_t first_index, int32_t vertex_offset) {
-  if (!pass || buffer->kind != PINE_BUFFER_INDEX)
+  if (!pass || index_buffer->kind != PINE_BUFFER_INDEX)
     return;
 
   MTLIndexType index_type;
   NSUInteger index_size;
-  if (buffer->index_type == PINE_INDEX_TYPE_U16) {
+  if (index_buffer->index_type == PINE_INDEX_TYPE_U16) {
     index_type = MTLIndexTypeUInt16;
     index_size = sizeof(uint16_t);
-  } else if (buffer->index_type == PINE_INDEX_TYPE_U32) {
+  } else if (index_buffer->index_type == PINE_INDEX_TYPE_U32) {
     index_type = MTLIndexTypeUInt32;
     index_size = sizeof(uint32_t);
   }
 
   [pass->encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                            indexCount:buffer->len / index_size
+                            indexCount:index_buffer->len / index_size
                              indexType:index_type
-                           indexBuffer:buffer->buffer
+                           indexBuffer:index_buffer->mtl_buffer
                      indexBufferOffset:first_index * index_size
                          instanceCount:1
                             baseVertex:vertex_offset
@@ -689,6 +708,7 @@ PineGraphicsBackend *pine_create_metal_backend(void) {
       .destroy_pipeline = metal_destroy_pipeline,
       .set_pipeline = metal_set_pipeline,
       .set_vertex_buffer = metal_set_vertex_buffer,
+      .set_uniform_buffer = metal_set_uniform_buffer,
       .draw = metal_draw,
       .draw_indexed = metal_draw_indexed,
   };

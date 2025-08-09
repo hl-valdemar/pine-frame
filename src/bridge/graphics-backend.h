@@ -146,10 +146,12 @@ typedef struct {
   // drawing
   void (*set_pipeline)(PineRenderPass *pass, PinePipeline *pipeline);
   void (*set_vertex_buffer)(PineRenderPass *pass, uint32_t index,
-                            PineBuffer *buffer);
+                            PineBuffer *vertex_buffer);
+  void (*set_uniform_buffer)(PineRenderPass *pass, uint32_t index,
+                             uint32_t offset, PineBuffer *uniform_buffer);
   void (*draw)(PineRenderPass *pass, uint32_t vertex_count,
                uint32_t first_vertex);
-  void (*draw_indexed)(PineRenderPass *pass, PineBuffer *buffer,
+  void (*draw_indexed)(PineRenderPass *pass, PineBuffer *index_buffer,
                        uint32_t first_index, int32_t vertex_offset);
 } PineGraphicsBackend;
 

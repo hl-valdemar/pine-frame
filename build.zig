@@ -4,6 +4,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const zm_dep = b.dependency("zm", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // create the pine-window library module
     const window_lib_mod = b.addModule("pine-window", .{
         .root_source_file = b.path("src/window/root.zig"),
@@ -151,6 +156,9 @@ pub fn build(b: *std.Build) !void {
         }, .{
             .name = "pine-graphics",
             .module = graphics_lib_mod,
+        }, .{
+            .name = "zm",
+            .module = zm_dep.module("zm"),
         } },
         .{
             .target = target,

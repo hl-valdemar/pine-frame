@@ -165,6 +165,10 @@ pub const RenderPass = struct {
         self.swapchain.context.backend.set_vertex_buffer.?(self.handle, index, buffer.handle);
     }
 
+    pub fn setUniformBuffer(self: *const RenderPass, index: u32, buffer: *const Buffer) void {
+        self.swapchain.context.backend.set_uniform_buffer.?(self.handle, index, 0, buffer.handle);
+    }
+
     pub fn draw(self: *const RenderPass, vertex_count: u32, first_vertex: u32) void {
         self.swapchain.context.backend.draw.?(self.handle, vertex_count, first_vertex);
     }
