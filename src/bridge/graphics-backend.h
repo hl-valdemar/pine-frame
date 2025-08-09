@@ -61,7 +61,7 @@ typedef enum {
   PINE_BUFFER_VERTEX,
   PINE_BUFFER_INDEX,
   PINE_BUFFER_UNIFORM,
-} PineBufferType;
+} PineBufferKind;
 
 typedef enum {
   PINE_INDEX_TYPE_U16 = 0,
@@ -71,7 +71,7 @@ typedef enum {
 typedef struct {
   const void *data;
   size_t len;
-  PineBufferType type;
+  PineBufferKind kind;
   PineIndexType index_type;
 } PineBufferDesc;
 
@@ -83,7 +83,7 @@ typedef struct {
   enum {
     PINE_SHADER_VERTEX,
     PINE_SHADER_FRAGMENT,
-  } type;
+  } kind;
 } PineShaderDesc;
 
 // pipeline types

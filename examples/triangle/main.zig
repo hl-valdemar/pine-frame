@@ -111,7 +111,7 @@ pub fn main() !void {
     const vertex_data = std.mem.sliceAsBytes(&vertices);
     var vertex_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = vertex_data,
-        .type = .vertex,
+        .kind = .vertex,
     });
     defer vertex_buffer.deinit();
 

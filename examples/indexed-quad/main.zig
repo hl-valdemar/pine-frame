@@ -117,7 +117,7 @@ pub fn main() !void {
     const vertex_data = std.mem.sliceAsBytes(&vertices);
     var vertex_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = vertex_data,
-        .type = .vertex, // default
+        .kind = .vertex, // default
     });
     defer vertex_buffer.deinit();
 
@@ -125,7 +125,7 @@ pub fn main() !void {
     const index_data = std.mem.sliceAsBytes(&indices);
     var index_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = index_data,
-        .type = .index,
+        .kind = .index,
         .index_type = .U16, // default
     });
     defer index_buffer.deinit();

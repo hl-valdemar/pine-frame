@@ -459,7 +459,7 @@ static void metal_get_capabilities(PineGraphicsContext *ctx,
 struct PineBuffer {
   id<MTLBuffer> buffer;
   size_t len;
-  PineBufferType type;
+  PineBufferKind kind;
   PineIndexType index_type;
 };
 
@@ -482,7 +482,7 @@ static PineBuffer *metal_create_buffer(PineGraphicsContext *ctx,
   if (!buffer)
     return NULL;
 
-  buffer->type = desc->type;
+  buffer->kind = desc->kind;
   buffer->index_type = desc->index_type;
   buffer->len = desc->len;
   buffer->buffer =
@@ -527,7 +527,7 @@ static PineShader *metal_create_shader(PineGraphicsContext *ctx,
 
     // get the main function (we'll use standard names)
     NSString *functionName =
-        (desc->type == PINE_SHADER_VERTEX) ? @"vertex_main" : @"fragment_main";
+        (desc->kind == PINE_SHADER_VERTEX) ? @"vertex_main" : @"fragment_main";
     id<MTLFunction> function = [library newFunctionWithName:functionName];
 
     if (!function) {
@@ -646,7 +646,7 @@ static void metal_draw(PineRenderPass *pass, uint32_t vertex_count,
 
 static void metal_draw_indexed(PineRenderPass *pass, PineBuffer *buffer,
                                uint32_t first_index, int32_t vertex_offset) {
-  if (!pass || buffer->type != PINE_BUFFER_INDEX)
+  if (!pass || buffer->kind != PINE_BUFFER_INDEX)
     return;
 
   MTLIndexType index_type;

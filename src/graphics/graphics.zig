@@ -205,7 +205,7 @@ pub fn beginPass(swapchain: *const Swapchain, pass_action: PassAction) !RenderPa
     };
 }
 
-pub const BufferType = enum(u32) {
+pub const BufferKind = enum(u32) {
     vertex = 0,
     index = 1,
     uniform = 2,
@@ -218,7 +218,7 @@ pub const IndexType = enum(u32) {
 
 pub const BufferDesc = struct {
     data: []const u8,
-    type: BufferType = .vertex,
+    kind: BufferKind = .vertex,
     index_type: IndexType = .U16,
 };
 
@@ -231,7 +231,7 @@ pub const Buffer = struct {
         const c_desc = c.PineBufferDesc{
             .data = desc.data.ptr,
             .len = desc.data.len,
-            .type = @intFromEnum(desc.type),
+            .kind = @intFromEnum(desc.kind),
             .index_type = @intFromEnum(desc.index_type),
         };
 
@@ -263,7 +263,7 @@ pub const Shader = struct {
     pub fn init(context: *const Context, source: [:0]const u8, shader_type: ShaderType) !Shader {
         const desc = c.PineShaderDesc{
             .source = source.ptr,
-            .type = @intFromEnum(shader_type),
+            .kind = @intFromEnum(shader_type),
         };
 
         const handle = context.backend.create_shader.?(context.handle, &desc) orelse {
