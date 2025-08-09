@@ -14,10 +14,10 @@ const Vertex = struct {
 };
 
 const UniformData = extern struct {
-    mvp_matrix: [16]f32,
+    mvp_matrix: [4][4]f32,
 };
 
-// Metal shader for 3D rendering
+// metal shader for 3d rendering
 const metal_shader_source =
     \\#include <metal_stdlib>
     \\using namespace metal;
@@ -54,17 +54,19 @@ const metal_shader_source =
 pub fn main() !void {
     std.log.info("initializing pine cube demo...", .{});
 
-    // Initialize platform and graphics
+    // initialize platform and graphics
     var plt = try pw.Platform.init();
     defer plt.deinit();
 
     var graphics_ctx = try pg.GraphicsContext.init(.auto);
     defer graphics_ctx.deinit();
 
-    // Create window
+    // create window
+    var win_width: f64 = 800;
+    var win_height: f64 = 600;
     var window = try pw.Window.init(&plt, .{
-        .width = 800,
-        .height = 600,
+        .width = win_width,
+        .height = win_height,
         .position = .{ .center = true },
         .title = "Pine Engine - 3D Cube",
         .resizable = true,
@@ -72,24 +74,24 @@ pub fn main() !void {
     });
     defer window.deinit();
 
-    // Create swapchain
+    // create swapchain
     var swapchain = try pg.Swapchain.init(&graphics_ctx, &window);
     defer swapchain.deinit();
 
-    // Create shaders
+    // create shaders
     var vertex_shader = try pg.Shader.init(&graphics_ctx, metal_shader_source, .vertex);
     defer vertex_shader.deinit();
 
     var fragment_shader = try pg.Shader.init(&graphics_ctx, metal_shader_source, .fragment);
     defer fragment_shader.deinit();
 
-    // Define vertex attributes for 3D positions
+    // define vertex attributes for 3d positions
     const attributes = [_]pg.VertexAttribute{
         .{ .format = .float3, .offset = @offsetOf(Vertex, "position") },
         .{ .format = .float3, .offset = @offsetOf(Vertex, "color") },
     };
 
-    // Create pipeline
+    // create pipeline
     var pipeline = try pg.Pipeline.init(&graphics_ctx, .{
         .vertex_shader = &vertex_shader,
         .fragment_shader = &fragment_shader,
@@ -98,38 +100,38 @@ pub fn main() !void {
     });
     defer pipeline.deinit();
 
-    // Define cube vertices (8 vertices)
+    // define cube vertices (8 vertices)
     const vertices = [_]Vertex{
-        // Front face (red tints)
+        // front face (red tints)
         .{ .position = .{ -0.5, -0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
-        .{ .position = .{ 0.5, -0.5, 0.5 }, .color = .{ 1.0, 0.5, 0.0 } },
-        .{ .position = .{ 0.5, 0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.5 } },
-        .{ .position = .{ -0.5, 0.5, 0.5 }, .color = .{ 0.5, 0.0, 0.0 } },
+        .{ .position = .{ 0.5, -0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
+        .{ .position = .{ 0.5, 0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
+        .{ .position = .{ -0.5, 0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
 
-        // Back face (blue tints)
+        // back face (blue tints)
         .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
-        .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 0.5, 1.0 } },
-        .{ .position = .{ 0.5, 0.5, -0.5 }, .color = .{ 0.5, 0.0, 1.0 } },
-        .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 0.5 } },
+        .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
+        .{ .position = .{ 0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
+        .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
     };
 
-    // Define cube indices (12 triangles, 2 per face)
+    // define cube indices (12 triangles, 2 per face)
     const indices = [_]u16{
-        // Front face
+        // front face
         0, 1, 2, 2, 3, 0,
-        // Back face
+        // back face
         4, 6, 5, 6, 4, 7,
-        // Left face
+        // left face
         4, 0, 3, 3, 7, 4,
-        // Right face
+        // right face
         1, 5, 6, 6, 2, 1,
-        // Top face
+        // top face
         3, 2, 6, 6, 7, 3,
-        // Bottom face
+        // bottom face
         4, 5, 1, 1, 0, 4,
     };
 
-    // Create vertex buffer
+    // create vertex buffer
     const vertex_data = std.mem.sliceAsBytes(&vertices);
     var vertex_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = vertex_data,
@@ -137,7 +139,7 @@ pub fn main() !void {
     });
     defer vertex_buffer.deinit();
 
-    // Create index buffer
+    // create index buffer
     const index_data = std.mem.sliceAsBytes(&indices);
     var index_buffer = try pg.Buffer.init(&graphics_ctx, .{
         .data = index_data,
@@ -146,17 +148,18 @@ pub fn main() !void {
     });
     defer index_buffer.deinit();
 
-    // Setup matrices using zm
-    const aspect_ratio = @as(f32, 800.0) / @as(f32, 600.0);
     var rotation: f32 = 0.0;
 
     std.log.info("entering render loop...", .{});
 
-    // Main loop
+    // calculate aspect ratio
+    var aspect_ratio = @as(f32, @floatCast(win_width / win_height));
+
+    // main loop
     while (!try window.shouldClose()) {
         plt.pollEvents();
 
-        // Handle events
+        // handle events
         while (try window.pollEvent()) |event| {
             switch (event) {
                 .key_down => |key_event| {
@@ -165,14 +168,18 @@ pub fn main() !void {
                         break;
                     }
                 },
+                .window_resize => { // recompute aspect ratio
+                    window.getSize(&win_width, &win_height);
+                    aspect_ratio = @as(f32, @floatCast(win_width / win_height));
+                },
                 else => {},
             }
         }
 
-        // Update rotation
+        // update rotation
         rotation += 0.01;
 
-        // Calculate transformation matrices
+        // calculate transformation matrices
         const model = zm.Mat4f.rotation(zm.Vec3f{ 0, 1, 0 }, rotation);
         const view = zm.Mat4f.lookAt(
             zm.Vec3f{ 0, 0, 3 }, // eye position
@@ -180,37 +187,45 @@ pub fn main() !void {
             zm.Vec3f{ 0, 1, 0 }, // up vector
         );
         const proj = zm.Mat4f.perspective(0.25 * std.math.pi, aspect_ratio, 0.1, 100);
-        const mvp = model.multiply(view).multiply(proj);
+        const mvp = proj.multiply(view).multiply(model);
+        const mvp_transposed = mvp.transpose(); // metal uses column major order
 
-        // Create uniform data
-        const uniform_data = UniformData{ .mvp_matrix = mvp.data };
+        // create uniform data
+        const uniform_data = UniformData{
+            .mvp_matrix = @bitCast(mvp_transposed.data),
+        };
 
-        // Create uniform buffer for this frame
-        const uniform_bytes = std.mem.sliceAsBytes(&[_]UniformData{uniform_data});
+        // create uniform buffer for this frame
+        const uniform_bytes = std.mem.asBytes(&uniform_data);
         var uniform_buffer = try pg.Buffer.init(&graphics_ctx, .{
             .data = uniform_bytes,
             .kind = .uniform,
         });
         defer uniform_buffer.deinit();
 
-        // Begin render pass
+        // begin render pass
         var render_pass = try pg.beginPass(&swapchain, .{
             .color = .{
                 .action = .clear,
-                .r = 0.1,
-                .g = 0.1,
-                .b = 0.1,
+                .r = 0.0,
+                .g = 0.0,
+                .b = 0.0,
                 .a = 1.0,
+            },
+            .depth_stencil = .{
+                .action = .clear,
+                .depth = 1,
+                .stencil = 0,
             },
         });
 
-        // Draw cube
+        // draw cube
         render_pass.setPipeline(&pipeline);
         render_pass.setVertexBuffer(0, &vertex_buffer);
         render_pass.setUniformBuffer(1, &uniform_buffer);
         render_pass.drawIndexed(&index_buffer, 0, 0);
 
-        // End render pass and present
+        // end render pass and present
         render_pass.end();
         swapchain.present();
 

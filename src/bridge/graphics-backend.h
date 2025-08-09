@@ -26,8 +26,6 @@ typedef struct {
 // swapchain config
 typedef struct {
   void *native_window_handle; // NSWindow* on macOS, HWND on Windows, etc.
-  uint32_t width;
-  uint32_t height;
   bool vsync;
 } PineSwapchainDesc;
 

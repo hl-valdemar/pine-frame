@@ -27,6 +27,9 @@ struct PineSwapchain {
   CAMetalLayer *metal_layer;
   NSView *metal_view;
 
+  id<MTLTexture> depth_texture; // depth buffer
+  MTLPixelFormat depth_format;  // chosen depth format
+
   // current frame state
   id<CAMetalDrawable> current_drawable;
   id<MTLRenderCommandEncoder> current_encoder;
@@ -120,6 +123,34 @@ static void metal_destroy_context(PineGraphicsContext *ctx) {
   free(ctx);
 }
 
+static bool metal_create_depth_texture(PineSwapchain *swapchain, uint32_t width,
+                                       uint32_t height) {
+  if (!swapchain || !swapchain->context->device)
+    return false;
+
+  // release old one
+  swapchain->depth_texture = nil;
+
+  // choose depth format
+  swapchain->depth_format = MTLPixelFormatDepth32Float;
+
+  MTLTextureDescriptor *desc = [MTLTextureDescriptor
+      texture2DDescriptorWithPixelFormat:swapchain->depth_format
+                                   width:width
+                                  height:height
+                               mipmapped:NO];
+  desc.storageMode = MTLStorageModePrivate;
+  desc.usage = MTLTextureUsageRenderTarget;
+
+  swapchain->depth_texture =
+      [swapchain->context->device newTextureWithDescriptor:desc];
+  if (!swapchain->depth_texture) {
+    pine_log(PINE_LOG_LEVEL_ERR, LOG_SCOPE, "failed to create depth texture");
+    return false;
+  }
+  return true;
+}
+
 static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
                                              const PineSwapchainDesc *config) {
   if (!ctx || !config || !config->native_window_handle)
@@ -133,6 +164,8 @@ static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
     swapchain->context = ctx;
     swapchain->current_drawable = nil;
     swapchain->current_encoder = nil;
+    swapchain->depth_texture = nil;
+    swapchain->depth_format = MTLPixelFormatA8Unorm;
     swapchain->current_frame_index = 0;
     swapchain->frames_submitted = 0;
     swapchain->frames_completed = 0;
@@ -167,8 +200,14 @@ static PineSwapchain *metal_create_swapchain(PineGraphicsContext *ctx,
     // update drawable size
     CGSize viewSize = swapchain->metal_view.bounds.size;
     CGFloat scale = window.backingScaleFactor;
-    swapchain->metal_layer.drawableSize =
-        CGSizeMake(viewSize.width * scale, viewSize.height * scale);
+    uint32_t tex_w = (uint32_t)(viewSize.width * scale);
+    uint32_t tex_h = (uint32_t)(viewSize.height * scale);
+    swapchain->metal_layer.drawableSize = CGSizeMake(tex_w, tex_h);
+
+    if (!metal_create_depth_texture(swapchain, tex_w, tex_h)) {
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "failed to create depth texture, depth will be nil");
+    }
 
     // initialize per-frame resources
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -214,6 +253,7 @@ static void metal_destroy_swapchain(PineSwapchain *swapchain) {
     }
 
     swapchain->current_drawable = nil;
+    swapchain->depth_texture = nil;
 
     [swapchain->metal_view removeFromSuperview];
     [swapchain->metal_view release];
@@ -244,8 +284,15 @@ static void metal_resize_swapchain(PineSwapchain *swapchain, uint32_t width,
     }
 
     CGFloat scale = swapchain->metal_view.window.backingScaleFactor;
-    swapchain->metal_layer.drawableSize =
-        CGSizeMake(width * scale, height * scale);
+    CGSize viewSize = swapchain->metal_view.bounds.size;
+    uint32_t tex_w = (uint32_t)(viewSize.width * scale);
+    uint32_t tex_h = (uint32_t)(viewSize.height * scale);
+    swapchain->metal_layer.drawableSize = CGSizeMake(tex_w, tex_h);
+
+    if (!metal_create_depth_texture(swapchain, tex_w, tex_h)) {
+      pine_log(PINE_LOG_LEVEL_WARN, LOG_SCOPE,
+               "failed to create depth texture, depth will be nil");
+    }
 
     [swapchain->frame_lock unlock];
   }
@@ -343,6 +390,23 @@ static PineRenderPass *metal_begin_render_pass(PineSwapchain *swapchain,
     color_att.loadAction = MTLLoadActionDontCare;
   }
   color_att.storeAction = MTLStoreActionStore;
+
+  // depth attachment (if we have a depth texture)
+  if (swapchain->depth_texture) {
+    MTLRenderPassDepthAttachmentDescriptor *depth_att = desc.depthAttachment;
+    depth_att.texture = swapchain->depth_texture;
+
+    if (action && action->depth_stencil.action == PINE_ACTION_CLEAR) {
+      depth_att.loadAction = MTLLoadActionClear;
+      depth_att.clearDepth = action->depth_stencil.depth;
+    } else if (action && action->depth_stencil.action == PINE_ACTION_LOAD) {
+      depth_att.loadAction = MTLLoadActionLoad;
+    } else {
+      depth_att.loadAction = MTLLoadActionDontCare;
+    }
+
+    depth_att.storeAction = MTLStoreActionDontCare; // store if read-back needed
+  }
 
   // create encoder
   id<MTLRenderCommandEncoder> encoder =
@@ -470,6 +534,7 @@ struct PineShader {
 struct PinePipeline {
   id<MTLRenderPipelineState> state;
   MTLVertexDescriptor *vertex_descriptor;
+  id<MTLDepthStencilState> depth_state;
 };
 
 // buffer implementation
@@ -520,7 +585,7 @@ static PineShader *metal_create_shader(PineGraphicsContext *ctx,
                                                          error:&error];
 
     if (!library) {
-      pine_log(PINE_LOG_LEVEL_ERROR, LOG_SCOPE, "failed to compile shader: %@",
+      pine_log(PINE_LOG_LEVEL_ERR, LOG_SCOPE, "failed to compile shader: %@",
                error);
       return NULL;
     }
@@ -531,7 +596,7 @@ static PineShader *metal_create_shader(PineGraphicsContext *ctx,
     id<MTLFunction> function = [library newFunctionWithName:functionName];
 
     if (!function) {
-      pine_log(PINE_LOG_LEVEL_ERROR, LOG_SCOPE,
+      pine_log(PINE_LOG_LEVEL_ERR, LOG_SCOPE,
                "failed to find function %s in shader",
                [functionName UTF8String]);
       return NULL;
@@ -563,6 +628,7 @@ static PinePipeline *metal_create_pipeline(PineGraphicsContext *ctx,
     pipeline_desc.vertexFunction = desc->vertex_shader->function;
     pipeline_desc.fragmentFunction = desc->fragment_shader->function;
     pipeline_desc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    pipeline_desc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
 
     // setup vertex descriptor
     MTLVertexDescriptor *vertex_desc = [[MTLVertexDescriptor alloc] init];
@@ -596,14 +662,22 @@ static PinePipeline *metal_create_pipeline(PineGraphicsContext *ctx,
                                                     error:&error];
 
     if (!state) {
-      pine_log(PINE_LOG_LEVEL_ERROR, "metal-backend",
+      pine_log(PINE_LOG_LEVEL_ERR, "metal-backend",
                "failed to create pipeline state: %@", error);
       return NULL;
     }
 
+    MTLDepthStencilDescriptor *ds_desc =
+        [[MTLDepthStencilDescriptor alloc] init];
+    ds_desc.depthCompareFunction = MTLCompareFunctionLess;
+    ds_desc.depthWriteEnabled = YES;
+    id<MTLDepthStencilState> depth_state =
+        [ctx->device newDepthStencilStateWithDescriptor:ds_desc];
+
     PinePipeline *pipeline = malloc(sizeof(PinePipeline));
     pipeline->state = state;
     pipeline->vertex_descriptor = vertex_desc;
+    pipeline->depth_state = depth_state;
 
     return pipeline;
   }
@@ -615,6 +689,7 @@ static void metal_destroy_pipeline(PinePipeline *pipeline) {
 
   pipeline->state = nil;
   pipeline->vertex_descriptor = nil;
+  pipeline->depth_state = nil;
   free(pipeline);
 }
 
@@ -624,6 +699,12 @@ static void metal_set_pipeline(PineRenderPass *pass, PinePipeline *pipeline) {
     return;
 
   [pass->encoder setRenderPipelineState:pipeline->state];
+
+  if (pipeline->depth_state) {
+    [pass->encoder setDepthStencilState:pipeline->depth_state];
+    // also set a stencil reference if needed:
+    // [pass->encoder setStencilReferenceValue:0];
+  }
 }
 
 static void metal_set_vertex_buffer(PineRenderPass *pass, uint32_t index,

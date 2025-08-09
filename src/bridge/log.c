@@ -13,7 +13,7 @@ void pine_log(PineLogLevel level, const char *scope, const char *format, ...) {
   case PINE_LOG_LEVEL_WARN:
     level_str = "warning";
     break;
-  case PINE_LOG_LEVEL_ERROR:
+  case PINE_LOG_LEVEL_ERR:
     level_str = "error";
     break;
   case PINE_LOG_LEVEL_DEBUG:

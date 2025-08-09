@@ -28,7 +28,7 @@ typedef enum {
 
 // helper to determine event priority
 static EventPriority get_event_priority(const PineEvent *event) {
-  switch (event->type) {
+  switch (event->kind) {
   case PINE_EVENT_WINDOW_CLOSE:
     return EVENT_PRIORITY_HIGH; // never drop close events
   case PINE_EVENT_KEY_DOWN:
@@ -37,6 +37,8 @@ static EventPriority get_event_priority(const PineEvent *event) {
     if (event->data.key_event.key == PINE_KEY_ESCAPE) {
       return EVENT_PRIORITY_HIGH;
     }
+    return EVENT_PRIORITY_NORMAL;
+  case PINE_EVENT_WINDOW_RESIZE:
     return EVENT_PRIORITY_NORMAL;
   default:
     return EVENT_PRIORITY_LOW;
@@ -148,7 +150,7 @@ static bool g_platform_initialized = false;
 - (void)keyDown:(NSEvent *)event {
   if (self.pineWindow) {
     PineEvent pine_event = {0};
-    pine_event.type = PINE_EVENT_KEY_DOWN;
+    pine_event.kind = PINE_EVENT_KEY_DOWN;
     pine_event.data.key_event.key = [event keyCode];
     pine_event.data.key_event.shift =
         ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -166,7 +168,7 @@ static bool g_platform_initialized = false;
 - (void)keyUp:(NSEvent *)event {
   if (self.pineWindow) {
     PineEvent pine_event = {0};
-    pine_event.type = PINE_EVENT_KEY_UP;
+    pine_event.kind = PINE_EVENT_KEY_UP;
     pine_event.data.key_event.key = [event keyCode];
     pine_event.data.key_event.shift =
         ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -192,7 +194,7 @@ static bool g_platform_initialized = false;
 
     // also push a close event
     PineEvent event = {0};
-    event.type = PINE_EVENT_WINDOW_CLOSE;
+    event.kind = PINE_EVENT_WINDOW_CLOSE;
     event_queue_push(&self.pineWindow->event_queue, &event);
   }
   return NO; // we'll handle closing manually
@@ -200,7 +202,14 @@ static bool g_platform_initialized = false;
 
 - (void)windowDidResize:(NSNotification *)notification {
   // graphics backend will handle resize through the swapchain
-  // NOTE: we could add a resize event here if needed
+  if (self.pineWindow) {
+    PineEvent event = {0};
+    event.kind = PINE_EVENT_WINDOW_RESIZE;
+    // don't fill ev.data.* here (avoid assuming union field names).
+    // NOTE: the zig side can call window_get_size() to obtain the new
+    // width/height.
+    event_queue_push(&self.pineWindow->event_queue, &event);
+  }
 }
 
 @end
@@ -385,7 +394,7 @@ static void cocoa_window_request_close(PineWindow *window) {
 
   // also push a close event
   PineEvent event = {0};
-  event.type = PINE_EVENT_WINDOW_CLOSE;
+  event.kind = PINE_EVENT_WINDOW_CLOSE;
   event_queue_push(&window->event_queue, &event);
 }
 
@@ -397,8 +406,8 @@ static void *cocoa_window_get_native_handle(PineWindow *window) {
   return (__bridge void *)window->ns_window;
 }
 
-static void cocoa_window_get_size(PineWindow *window, uint32_t *width,
-                                  uint32_t *height) {
+static void cocoa_window_get_size(PineWindow *window, double_t *width,
+                                  double_t *height) {
   if (!window || !window->ns_window) {
     return;
   }

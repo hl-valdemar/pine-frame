@@ -46,13 +46,9 @@ pub fn main() !void {
                         break;
                     }
                 },
-                .key_up => |key_event| {
-                    logKeyEvent("released", &key_event);
-                },
-                .window_close => {
-                    std.log.info("window close requested", .{});
-                },
-                .none => {},
+                .key_up => |key_event| logKeyEvent("released", &key_event),
+                .window_close => std.log.info("window close requested", .{}),
+                .window_resize => std.log.info("window resized", .{}),
             }
         }
 

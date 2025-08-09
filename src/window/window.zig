@@ -29,8 +29,8 @@ pub const Platform = struct {
         return initWithBackend(.auto);
     }
 
-    pub fn initWithBackend(backend_type: WindowBackend) !Platform {
-        const backend = switch (backend_type) {
+    pub fn initWithBackend(backend_kind: WindowBackend) !Platform {
+        const backend = switch (backend_kind) {
             .cocoa => c.pine_create_cocoa_backend(),
             // TODO: implement these backends
             // .win32 => c.pine_create_win32_backend(),
@@ -74,11 +74,11 @@ pub const Platform = struct {
 };
 
 pub const WindowDesc = struct {
-    width: i32 = 800,
-    height: i32 = 600,
+    width: f64 = 800,
+    height: f64 = 600,
     position: struct {
-        x: i32 = 0,
-        y: i32 = 0,
+        x: f64 = 0,
+        y: f64 = 0,
         center: bool = false,
     } = .{},
     title: []const u8 = "Pine Window",
@@ -86,11 +86,11 @@ pub const WindowDesc = struct {
     visible: bool = true,
 };
 
-pub const EventType = enum(u32) {
-    none = 0,
+pub const EventKind = enum(u32) {
     key_down,
     key_up,
     window_close,
+    window_resize,
 };
 
 pub const KeyCode = enum(i32) {
@@ -171,11 +171,14 @@ pub const KeyEvent = struct {
     window_id: WindowID,
 };
 
-pub const Event = union(EventType) {
-    none: void,
+pub const Event = union(EventKind) {
+    // none: void,
     key_down: KeyEvent,
     key_up: KeyEvent,
     window_close: struct {
+        id: WindowID,
+    },
+    window_resize: struct {
         id: WindowID,
     },
 };
@@ -189,7 +192,7 @@ pub const Window = struct {
     handle: ?*c.PineWindow,
     id: WindowID,
     destroyed: bool,
-    key_states: [KeyCode.maxValue()]EventType, // without .unknown
+    key_states: [KeyCode.maxValue()]?EventKind, // without .unknown
 
     pub fn init(platform: *const Platform, config: WindowDesc) !Window {
         const backend = platform.backend;
@@ -220,7 +223,7 @@ pub const Window = struct {
             .handle = handle,
             .id = nextId(),
             .destroyed = false,
-            .key_states = [_]EventType{.none} ** KeyCode.maxValue(),
+            .key_states = [_]?EventKind{null} ** KeyCode.maxValue(),
         };
     }
 
@@ -250,14 +253,18 @@ pub const Window = struct {
         self.backend.window_request_close.?(self.handle.?);
     }
 
+    pub fn getSize(self: *const Window, width: *f64, height: *f64) void {
+        if (self.destroyed) return; // just ignore
+        self.backend.window_get_size.?(self.handle.?, width, height);
+    }
+
     pub fn pollEvent(self: *Window) !?Event {
         var c_event: c.PineEvent = undefined;
         if (!self.backend.window_poll_event.?(self.handle, &c_event)) {
             return null;
         }
 
-        return switch (c_event.type) {
-            c.PINE_EVENT_NONE => Event{ .none = {} },
+        return switch (c_event.kind) {
             c.PINE_EVENT_KEY_DOWN => {
                 var key_event = KeyEvent{
                     .key = std.meta.intToEnum(KeyCode, c_event.data.key_event.key) catch .unknown,
@@ -272,8 +279,8 @@ pub const Window = struct {
                 };
 
                 // first check previous key state
-                if (self.key_states[key_event.key.asUsize()] == .key_down) {
-                    key_event.is_repeat = true;
+                if (self.key_states[key_event.key.asUsize()]) |state| {
+                    if (state == .key_down) key_event.is_repeat = true;
                 }
                 // then set new key state
                 self.key_states[key_event.key.asUsize()] = .key_down;
@@ -294,11 +301,11 @@ pub const Window = struct {
                 };
 
                 // NOTE: this may be foolish if no platforms release events when no key is pressed.
-                // if that's the case, then all key-up events will be essentially unable to "repeat".
+                // if that's the case, then all key-up events will be, essentially, unable to "repeat".
                 {
                     // first check previous key state
-                    if (self.key_states[key_event.key.asUsize()] == .key_up) {
-                        key_event.is_repeat = true;
+                    if (self.key_states[key_event.key.asUsize()]) |state| {
+                        if (state == .key_up) key_event.is_repeat = true;
                     }
                     // then set new key state
                     self.key_states[key_event.key.asUsize()] = .key_up;
@@ -309,7 +316,10 @@ pub const Window = struct {
             c.PINE_EVENT_WINDOW_CLOSE => Event{
                 .window_close = .{ .id = self.id },
             },
-            else => Event{ .none = {} },
+            c.PINE_EVENT_WINDOW_RESIZE => Event{
+                .window_resize = .{ .id = self.id },
+            },
+            else => null,
         };
     }
 

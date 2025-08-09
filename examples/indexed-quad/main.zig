@@ -101,10 +101,17 @@ pub fn main() !void {
 
     // define quad vertices (4 vertices instead of 6 for two triangles)
     const vertices = [_]Vertex{
+        // nice colors
         .{ .position = .{ -0.5, -0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // 0: bottom left
-        .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // 1: bottom right
-        .{ .position = .{ 0.5, 0.5 }, .color = .{ 0.0, 0.0, 1.0 } }, // 2: top right
-        .{ .position = .{ -0.5, 0.5 }, .color = .{ 1.0, 1.0, 0.0 } }, // 3: top left
+        .{ .position = .{ 0.5, -0.5 }, .color = .{ 1.0, 0.5, 0.0 } }, // 1: bottom right
+        .{ .position = .{ 0.5, 0.5 }, .color = .{ 1.0, 0.0, 0.5 } }, // 2: top right
+        .{ .position = .{ -0.5, 0.5 }, .color = .{ 0.5, 0.0, 0.0 } }, // 3: top left
+
+        // also pretty nice colors
+        // .{ .position = .{ -0.5, -0.5 }, .color = .{ 1.0, 0.0, 0.0 } }, // 0: bottom left
+        // .{ .position = .{ 0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } }, // 1: bottom right
+        // .{ .position = .{ 0.5, 0.5 }, .color = .{ 0.0, 0.0, 1.0 } },  // 2: top right
+        // .{ .position = .{ -0.5, 0.5 }, .color = .{ 1.0, 1.0, 0.0 } }, // 3: top left
     };
 
     // define indices for two triangles forming a quad

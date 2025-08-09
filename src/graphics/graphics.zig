@@ -87,14 +87,8 @@ pub const Swapchain = struct {
         // access window functions through the backend vtable
         const native_handle = window.backend.window_get_native_handle.?(window.handle);
 
-        var width: u32 = undefined;
-        var height: u32 = undefined;
-        window.backend.window_get_size.?(window.handle, &width, &height);
-
         const config = c.PineSwapchainDesc{
             .native_window_handle = native_handle,
-            .width = width,
-            .height = height,
             .vsync = true,
         };
 

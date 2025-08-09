@@ -1,6 +1,7 @@
 #ifndef PINE_WINDOW_BACKEND_H
 #define PINE_WINDOW_BACKEND_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -15,11 +16,11 @@ typedef struct PineWindowBackend PineWindowBackend;
 
 // window configuration structure
 typedef struct {
-  int32_t width;
-  int32_t height;
+  double_t width;
+  double_t height;
   struct {
-    int32_t x;
-    int32_t y;
+    double_t x;
+    double_t y;
     bool center;
   } position;
   const char *title;
@@ -29,11 +30,11 @@ typedef struct {
 
 // event types
 typedef enum {
-  PINE_EVENT_NONE = 0,
   PINE_EVENT_KEY_DOWN,
   PINE_EVENT_KEY_UP,
   PINE_EVENT_WINDOW_CLOSE,
-} PineEventType;
+  PINE_EVENT_WINDOW_RESIZE,
+} PineEventKind;
 
 // key codes
 typedef enum {
@@ -87,7 +88,7 @@ typedef enum {
 
 // event structure
 typedef struct {
-  PineEventType type;
+  PineEventKind kind;
   union {
     struct {
       PineKeyCode key;
@@ -116,8 +117,8 @@ struct PineWindowBackend {
 
   // window properties
   void *(*window_get_native_handle)(PineWindow *window);
-  void (*window_get_size)(PineWindow *window, uint32_t *width,
-                          uint32_t *height);
+  void (*window_get_size)(PineWindow *window, double_t *width,
+                          double_t *height);
 
   // event processing
   bool (*window_poll_event)(PineWindow *window, PineEvent *event);
