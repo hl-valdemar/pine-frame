@@ -146,7 +146,7 @@ pub fn build(b: *std.Build) !void {
     graphics_docs_step.dependOn(&install_graphics_docs.step);
 
     // create executable modules for all examples
-    const gpa = std.heap.DebugAllocator(.{}).init;
+    var gpa = std.heap.DebugAllocator(.{}).init;
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

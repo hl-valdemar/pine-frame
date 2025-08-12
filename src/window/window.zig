@@ -197,7 +197,7 @@ pub const Window = struct {
     key_states: [KeyCode.maxValue()]?EventKind, // without .unknown
 
     pub fn init(platform: *const Platform, config: WindowDesc) !Window {
-        const gpa = std.heap.DebugAllocator(.{}).init;
+        var gpa = std.heap.DebugAllocator(.{}).init;
         defer _ = gpa.deinit();
         const allocator = gpa.allocator();
 

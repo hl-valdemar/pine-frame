@@ -306,7 +306,7 @@ pub const Pipeline = struct {
         context: *const Context,
         desc: PipelineDesc,
     ) !Pipeline {
-        const gpa = std.heap.DebugAllocator(.{}).init;
+        var gpa = std.heap.DebugAllocator(.{}).init;
         defer _ = gpa.deinit();
         const allocator = gpa.allocator();
 
