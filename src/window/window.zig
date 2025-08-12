@@ -197,8 +197,11 @@ pub const Window = struct {
     key_states: [KeyCode.maxValue()]?EventKind, // without .unknown
 
     pub fn init(platform: *const Platform, config: WindowDesc) !Window {
+        const gpa = std.heap.DebugAllocator(.{}).init;
+        defer _ = gpa.deinit();
+        const allocator = gpa.allocator();
+
         const backend = platform.backend;
-        const allocator = std.heap.c_allocator;
 
         const title_cstr = try std.fmt.allocPrintZ(allocator, "{s}", .{config.title});
         defer allocator.free(title_cstr);

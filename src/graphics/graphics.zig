@@ -306,7 +306,9 @@ pub const Pipeline = struct {
         context: *const Context,
         desc: PipelineDesc,
     ) !Pipeline {
-        const allocator = std.heap.c_allocator;
+        const gpa = std.heap.DebugAllocator(.{}).init;
+        defer _ = gpa.deinit();
+        const allocator = gpa.allocator();
 
         // convert attributes to c format
         var c_attrs = try allocator.alloc(c.PineVertexAttribute, desc.attributes.len);
