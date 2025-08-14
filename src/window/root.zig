@@ -22,7 +22,7 @@ pub const Platform = window.Platform;
 
 // event types
 pub const Event = window.Event;
-pub const EventType = window.EventType;
+pub const EventKind = window.EventKind;
 pub const KeyCode = window.KeyCode;
 pub const KeyModifiers = window.KeyModifiers;
 pub const KeyEvent = window.KeyEvent;
